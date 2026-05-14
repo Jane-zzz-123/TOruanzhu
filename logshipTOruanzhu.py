@@ -7,15 +7,12 @@ from datetime import datetime, timedelta
 from io import BytesIO
 import base64
 import math
-
-# 页面配置
 st.set_page_config(
     page_title="FBA海运物流交期分析平台",
     page_icon="🚢",
     layout="wide",
     initial_sidebar_state="expanded"
 )
-
 def get_prev_month(current_month):
     """获取上个月的年月字符串（格式：YYYY-MM）"""
     try:
@@ -24,7 +21,6 @@ def get_prev_month(current_month):
         return prev_month.strftime("%Y-%m")
     except:
         return ""
-
 def calculate_percent_change(current, prev):
     """计算环比变化百分比"""
     try:
@@ -33,7 +29,6 @@ def calculate_percent_change(current, prev):
         return ((current - prev) / prev) * 100
     except:
         return 0
-
 def highlight_large_cells(val, avg, col_name):
     """高亮大于平均值的单元格"""
     try:
@@ -45,7 +40,6 @@ def highlight_large_cells(val, avg, col_name):
     except:
         pass
     return ""
-
 def highlight_change(val):
     """高亮环比变化（红升绿降）"""
     try:
@@ -60,7 +54,6 @@ def highlight_change(val):
     except:
         pass
     return ""
-
 def get_table_download_link(df, filename, text):
     """生成表格下载链接"""
     output = BytesIO()
@@ -70,7 +63,6 @@ def get_table_download_link(df, filename, text):
     b64 = base64.b64encode(output.read()).decode()
     href = f'<a href="data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,{b64}" download="{filename}">{text}</a>'
     return href
-
 # ---------------------- 数据加载函数 ----------------------
 @st.cache_data
 def load_data():
@@ -80,7 +72,6 @@ def load_data():
     except Exception as e:
         st.error(f"读取数据失败：{str(e)}")
         return pd.DataFrame(), pd.DataFrame()
-
     # 处理「是否为异常数据」列
     abnormal_col = "是否为异常数据"
     if abnormal_col in df_all.columns:
@@ -131,13 +122,10 @@ def load_data():
         df_all[real_diff_col] = pd.to_numeric(df_all[real_diff_col], errors='coerce').fillna(0)
         df_clean[real_diff_col] = pd.to_numeric(df_clean[real_diff_col], errors='coerce').fillna(0)
     return df_all, df_clean
-# ---------------------- 主程序逻辑 ----------------------
-# 1. 加载两份基础数据
 df_all, df_clean = load_data()
 if df_all.empty:
     st.error("暂无可用数据，请检查数据源或列名！")
     st.stop()
-# 2. 顶部筛选按钮
 st.header("FBA海运物流交期分析看板")
 data_filter = st.radio(
     "📊 选择数据范围：",
@@ -146,26 +134,18 @@ data_filter = st.radio(
     horizontal=True,
     key="data_filter"
 )
-# 3. 生成两套数据
 if data_filter == "纯净数据（剔除异常）":
     df_selected_FBA = df_clean.copy()
     df_selected = df_clean.drop_duplicates(subset=["货件单号"], keep="first").copy()
-
-    # ===================== 纯净模式 =====================
-    # 全局被剔除的异常数据（来自 df_all）
     df_excluded = df_all[df_all["是否为异常数据"] == "是"]
-
-    # 货件维度（去重）
     excluded_shipment = df_excluded.drop_duplicates(subset=["货件单号"], keep="first")
     excluded_shipment_count = len(excluded_shipment)
     excluded_shipment_check = len(excluded_shipment[excluded_shipment["是否查验"] == "是"])
     excluded_shipment_nocheck = excluded_shipment_count - excluded_shipment_check
-
     # FBA维度（不去重）
     excluded_fba_count = len(df_excluded)
     excluded_fba_check = len(df_excluded[df_excluded["是否查验"] == "是"])
     excluded_fba_nocheck = excluded_fba_count - excluded_fba_check
-
     st.success(
         f"✅ 已筛选为纯净数据（全局），\n"
         f"已剔除 {excluded_shipment_count} 条货件异常数据（查验导致 {excluded_shipment_check} 条，非查验 {excluded_shipment_nocheck} 条），\n"
@@ -190,11 +170,9 @@ else:
         f"其中异常 {abnormal_shipment} 条，查验导致 {abnormal_shipment_check} 条，非查验 {abnormal_shipment_nocheck} 条 | "
         f"共 {total_fba} 条FBA记录，其中异常 {abnormal_fba} 条，查验导致 {abnormal_fba_check} 条，非查验 {abnormal_fba_nocheck} 条"
     )
-
 # 5. 主看板区域
 st.title("🚢 FBA海运分析看板区域")
 st.divider()
-# 6. 当月数据筛选（基于 df_selected，不会丢数据）
 st.subheader("🔍 当月海运分析")
 month_options = sorted(df_selected["到货年月"].unique(), reverse=True)
 if not month_options:
@@ -208,33 +186,25 @@ selected_month = st.selectbox(
 )
 st.subheader("")
 logistics_methods = ['全部'] + list(df_selected['物流方式'].dropna().unique())
-# 创建下拉筛选器，默认选中“全部”
 selected_logistics = st.selectbox(
     "选择物流方式",
     options=logistics_methods,
     index=0,  # 默认选中第一个选项（全部）
     key="logistics_filter"  # 唯一key，避免streamlit缓存冲突
 )
-# 7. 当月数据【两套同步筛选】
-# A. 货件去重（非仓库用）
 df_current = df_selected[df_selected["到货年月"] == selected_month].copy()
 if selected_logistics != '全部':
     df_current = df_current[df_current['物流方式'] == selected_logistics].copy()
-# B. FBA不去重（仓库分析用）
 df_current_FBA = df_selected_FBA[df_selected_FBA["到货年月"] == selected_month].copy()
 if selected_logistics != '全部':
     df_current_FBA = df_current_FBA[df_current_FBA['物流方式'] == selected_logistics].copy()
-# 8. 上月数据【两套同步筛选】
 prev_month = get_prev_month(selected_month)
-# A. 货件去重（非仓库用）
 df_prev = df_selected[df_selected["到货年月"] == prev_month].copy() if prev_month and prev_month in month_options else pd.DataFrame()
 if selected_logistics != '全部' and not df_prev.empty:
     df_prev = df_prev[df_prev['物流方式'] == selected_logistics].copy()
-# B. FBA不去重（仓库分析用）→ 新增
 df_prev_FBA = df_selected_FBA[df_selected_FBA["到货年月"] == prev_month].copy() if prev_month and prev_month in month_options else pd.DataFrame()
 if selected_logistics != '全部' and not df_prev.empty:
     df_prev_FBA = df_prev_FBA[df_prev_FBA['物流方式'] == selected_logistics].copy()
-# 9. 【最终版】当月异常数据统计 + 查验区分（纯净数据模式也支持）
 logistics_tip = f"，筛选物流方式：{selected_logistics}" if selected_logistics != "全部" else ""
 # 先统一计算当月异常总数
 abnormal_filter = (df_all["到货年月"] == selected_month) & (df_all["是否为异常数据"] == "是")
@@ -246,7 +216,6 @@ if data_filter == "纯净数据（剔除异常）":
         (df_all["到货年月"] == selected_month) &
         (df_all["物流方式"] == selected_logistics if selected_logistics != "全部" else True)
         ].drop_duplicates(subset=["货件单号"], keep="first")
-
     excluded_shipment = len(temp_all_shipment[temp_all_shipment["是否为异常数据"] == "是"])
     excluded_shipment_check = len(temp_all_shipment[
                                       (temp_all_shipment["是否为异常数据"] == "是") &
@@ -257,7 +226,6 @@ if data_filter == "纯净数据（剔除异常）":
         (df_all["到货年月"] == selected_month) &
         (df_all["物流方式"] == selected_logistics if selected_logistics != "全部" else True)
         ]
-
     excluded_fba = len(temp_all_fba[temp_all_fba["是否为异常数据"] == "是"])
     excluded_fba_check = len(temp_all_fba[
                                  (temp_all_fba["是否为异常数据"] == "是") &
@@ -283,13 +251,11 @@ else:
             f"共 {total_current_fba} 条FBA记录，其中异常 {abnormal_current_fba} 条（查验导致 {abnormal_fba_check} 条，非查验 {abnormal_fba_nocheck} 条）")
 # ---------------------- ① 核心指标卡片 ----------------------
 st.markdown("### 核心指标")
-# 1. FBA单数
 current_fba = len(df_current)
 prev_fba = len(df_prev) if not df_prev.empty else 0
 fba_change = current_fba - prev_fba
 fba_change_text = f"{'↑' if fba_change > 0 else '↓' if fba_change < 0 else '—'} {abs(fba_change)} (上月: {prev_fba})"
 fba_change_color = "red" if fba_change > 0 else "green" if fba_change < 0 else "gray"
-# 2. 提前/准时数
 if "提前/延期(整体)" in df_current.columns:
     current_on_time = len(df_current[df_current["提前/延期(整体)"].isin(["提前/准时", "提前", "准时"])])
 else:
@@ -301,7 +267,6 @@ else:
 on_time_change = current_on_time - prev_on_time
 on_time_change_text = f"{'↑' if on_time_change > 0 else '↓' if on_time_change < 0 else '—'} {abs(on_time_change)} (上月: {prev_on_time})"
 on_time_change_color = "red" if on_time_change > 0 else "green" if on_time_change < 0 else "gray"
-# 3. 延期数
 current_delay = len(df_current[df_current["提前/延期(整体)"] == "延期"]) if "提前/延期(整体)" in df_current.columns else 0
 prev_delay = len(
     df_prev[df_prev["提前/延期(整体)"] == "延期"]) if not df_prev.empty and "提前/延期(整体)" in df_prev.columns else 0
@@ -316,7 +281,6 @@ prev_abs_avg = df_prev[abs_col].mean() if not df_prev.empty and abs_col in df_pr
 abs_change = current_abs_avg - prev_abs_avg  # 差值计算（替换百分比）
 abs_change_text = f"{'↑' if abs_change > 0 else '↓' if abs_change < 0 else '—'} {abs(abs_change):.2f} (上月: {prev_abs_avg:.2f})"
 abs_change_color = "red" if abs_change > 0 else "green" if abs_change < 0 else "gray"
-# 5. 实际差值平均值
 diff_col = "预计物流时效-实际物流时效差值"
 current_diff_avg = df_current[diff_col].mean() if diff_col in df_current.columns and len(df_current) > 0 else 0
 prev_diff_avg = df_prev[diff_col].mean() if not df_prev.empty and diff_col in df_prev.columns and len(
@@ -324,12 +288,10 @@ prev_diff_avg = df_prev[diff_col].mean() if not df_prev.empty and diff_col in df
 diff_change = current_diff_avg - prev_diff_avg
 diff_change_text = f"{'↑' if diff_change > 0 else '↓' if diff_change < 0 else '—'} {abs(diff_change):.2f} (上月: {prev_diff_avg:.2f})"
 diff_change_color = "red" if diff_change > 0 else "green" if diff_change < 0 else "gray"
-# 6. 准时率
 current_on_time_rate = (current_on_time / current_fba * 100) if current_fba > 0 else 0.0
 prev_on_time_rate = (prev_on_time / prev_fba * 100) if prev_fba > 0 else 0.0
 on_time_rate_change = current_on_time_rate - prev_on_time_rate
 on_time_rate_change_text = f"{'↑' if on_time_rate_change > 0 else '↓' if on_time_rate_change < 0 else '—'} {abs(on_time_rate_change):.1f}% (上月: {prev_on_time_rate:.1f}%)"
-# 准时率变化颜色（红升绿降）
 on_time_rate_change_color = "red" if on_time_rate_change > 0 else "green" if on_time_rate_change < 0 else "gray"
 col1, col2, col3, col4, col5, col6 = st.columns(6)
 with col1:
@@ -405,28 +367,20 @@ if abs(on_time_rate_change) >= 5:
         tips += f"💡 亮点：本月准时率环比提升{on_time_rate_change:.1f}个百分点，物流效率显著改善；"
     else:
         tips += f"⚠️ 风险：本月准时率环比下降{abs(on_time_rate_change):.1f}个百分点，需排查延期原因；"
-# 2. 延期单占比过高提示
 if delay_rate >= 30:
     tips += f"⚠️ 风险：延期单占比超30%，建议优先核查高频延期的货代/仓库；"
-# 3. 时效偏差扩大提示
 if abs_change >= 2:
     tips += f"⚠️ 风险：时效偏差绝对值环比扩大{abs_change:.2f}天，预计时效的准确性需优化；"
-# 4. 无明显风险的正向提示
 if not tips:
     tips = "💡 本月物流时效无显著异常，各维度表现稳定。"
-# 整合最终总结
 summary_text = f"""
 ### {selected_month}海运物流核心分析
 {core_conclusion}
-
 {data_support}
-
 {tips}
 """
-
 # 渲染总结（用markdown美化）
 st.markdown(summary_text)
-
 # ---------------------- ② 当月准时率与时效偏差 ----------------------
 st.markdown("### 准时率与时效偏差分布")
 col1, col2 = st.columns(2)
@@ -668,10 +622,8 @@ if len(df_detail) > 0:
     </div>
     """
     st.markdown(html_content, unsafe_allow_html=True)
-
     # === 3. 添加表格下载功能 ===
     df_download = pd.concat([pd.DataFrame([avg_row]), df_detail], ignore_index=True)
-
     # 显示下载按钮
     st.markdown(
         get_table_download_link(
@@ -1675,7 +1627,6 @@ if "是否查验" in df_all.columns and "是否为异常数据" in df_all.column
         st.info("无共同物流方式可展示")
 else:
     st.info("暂无数据或缺少字段")
-
 # 1. 开船 - 提柜
 st.markdown("### 🔸 开船-提柜 耗时分布（按物流方式）")
 bins1  = [9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,999]
@@ -1937,7 +1888,6 @@ else:
                 (monthly_stats["到货年月"] <= end_ym)
             ].copy()
             df_filtered = df_filtered.sort_values("年月排序", ascending=True).reset_index(drop=True)
-
             start_cn = df_filtered["中文月份"].min() if len(df_filtered) > 0 else ""
             end_cn = df_filtered["中文月份"].max() if len(df_filtered) > 0 else ""
             st.info(f"✅ 筛选结果：{selected_logistics} | {start_cn} 至 {end_cn}（共{len(df_filtered)}个月份）")
@@ -2006,7 +1956,6 @@ else:
                 barmode="group"
             )
             st.plotly_chart(fig, use_container_width=True)
-
             # ===== 月度明细表格 =====
             st.markdown("### 月度核心指标明细（倒序排列）")
             df_display = df_filtered.sort_values("年月排序", ascending=False).reset_index(drop=True)
@@ -2313,7 +2262,6 @@ else:
                     marker_color="#e53e3e",
                     opacity=0.8
                 ))
-
                 # 右轴：折线图（准时率）
                 fig_freight.add_trace(go.Scatter(
                     x=df_freight_trend["中文月份"],
@@ -2327,7 +2275,6 @@ else:
                     text=df_freight_trend["准时率(%)"].apply(lambda x: f"{x:.2f}%"),
                     textposition="top center"
                 ))
-
                 # 平均准时率红色虚线
                 fig_freight.add_trace(go.Scatter(
                     x=df_freight_trend["中文月份"],
@@ -2643,7 +2590,6 @@ else:
                             st.plotly_chart(fig, use_container_width=True)
                     else:
                         st.info("暂无匹配仓库数据")
-                    # ===================== 3. 三列仓库卡片 =====================
                     st.markdown("### 各仓库详细表现（按区域：区域C→区域B→区域A）")
                     total_orders = df_warehouse_filtered["总订单数"].sum()
                     wh_summary = []
@@ -2686,7 +2632,6 @@ else:
                                     平均时效：{row['平均上架时效']}天
                                     </div>
                                     """, unsafe_allow_html=True)
-                    # 数据下载
                     st.markdown("### 数据下载")
                     c1,c2 = st.columns(2)
                     with c1:
