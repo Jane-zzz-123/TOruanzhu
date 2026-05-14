@@ -126,7 +126,7 @@ df_all, df_clean = load_data()
 if df_all.empty:
     st.error("暂无可用数据，请检查数据源或列名！")
     st.stop()
-st.header("FBA海运物流交期分析看板")
+st.header("FBA海运物流交期分析平台")
 data_filter = st.radio(
     "📊 选择数据范围：",
     options=["全部数据", "纯净数据（剔除异常）"],
@@ -171,7 +171,7 @@ else:
         f"共 {total_fba} 条FBA记录，其中异常 {abnormal_fba} 条，查验导致 {abnormal_fba_check} 条，非查验 {abnormal_fba_nocheck} 条"
     )
 # 5. 主看板区域
-st.title("🚢 FBA海运分析看板区域")
+st.title("🚢 FBA海运分析平台区域")
 st.divider()
 st.subheader("🔍 当月海运分析")
 month_options = sorted(df_selected["到货年月"].unique(), reverse=True)
