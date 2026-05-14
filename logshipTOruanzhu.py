@@ -825,15 +825,15 @@ signoff_stage = "提柜-签收"  # 重点细分区域的环节
 # 核心规则：区域正常标准（自动适配以星转火车）
 # 常规物流（非以星转火车）标准
 NORMAL_REGION_THRESHOLD = {
-    "美西": 6,  # 美西≤6天正常
-    "美中": 10,  # 美中≤10天正常
-    "美东": 11,  # 美东≤11天正常
+    "区域A": 6,  # 美西≤6天正常
+    "区域C": 10,  # 美中≤10天正常
+    "区域B": 11,  # 美东≤11天正常
     "未知区域": 6  # 无区域信息时默认阈值
 }
 # 以星转火车 专属规则（仅美东≤4天）
-YIXING_SPECIAL_NAME = "以星转火车"
+YIXING_SPECIAL_NAME = "渠道C"
 YIXING_REGION_THRESHOLD = {
-    "美东": 4,
+    "区域C": 4,
     "未知区域": 4  # 以星转火车若出现未知区域，仍按4天标准
 }
 
@@ -849,12 +849,12 @@ df_current[region_col] = df_current[region_col].fillna("未知区域").apply(
     lambda x: x.strip() if isinstance(x, str) else "未知区域")
 # 区域名称校准（确保与阈值字典匹配，如数据中是“美国东部”自动转为“美东”）
 df_current[region_col] = df_current[region_col].replace({
-    "美国东部": "美东",
-    "美国西部": "美西",
-    "美国中部": "美中",
-    "东部": "美东",
-    "西部": "美西",
-    "中部": "美中"
+    "美国A部": "区域A",
+    "美国B部": "区域B",
+    "美国C部": "区域C",
+    "A部": "区域A",
+    "B部": "区域B",
+    "C部": "区域C"
 })
 # 物流方式字段清洗
 df_current[ship_method_col] = df_current[ship_method_col].fillna("其他").apply(
@@ -979,8 +979,8 @@ else:
         - 仓库原因延期：{warehouse_count} 单（占延期订单的 {warehouse_pct}%）
 
         #### 📌 提柜-签收环节物流标准
-        - 常规物流：美西≤6天 | 美中≤10天 | 美东≤11天
-        - 以星转火车（专属）：美东≤4天
+        - 常规物流：区域C≤6天 | 区域B≤10天 | 区域A≤11天
+        - 渠道C（专属）：美东≤4天
 
         #### 📌 仓库环节物流标准
         - 签收-完成上架：≤3天
