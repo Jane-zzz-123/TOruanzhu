@@ -8,7 +8,7 @@ from io import BytesIO
 import base64
 import math
 st.set_page_config(
-    page_title="FBA海运物流交期分析平台",
+    page_title="FBA海运物流时效分析平台",
     page_icon="🚢",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -126,7 +126,7 @@ df_all, df_clean = load_data()
 if df_all.empty:
     st.error("暂无可用数据，请检查数据源或列名！")
     st.stop()
-st.header("FBA海运物流交期分析平台")
+st.header("FBA海运物流时效分析平台")
 data_filter = st.radio(
     "📊 选择数据范围：",
     options=["全部数据", "纯净数据（剔除异常）"],
