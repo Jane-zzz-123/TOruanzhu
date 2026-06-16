@@ -8,15 +8,15 @@ from plotly.subplots import make_subplots
 import plotly.graph_objects as go
 import numpy as np
 # -------------------------- 页面设置 --------------------------
-st.set_page_config(page_title="采购交期监控看板", page_icon="📊", layout="wide")
-st.title("📦 采购交期监控可视化看板")
+st.set_page_config(page_title="月度采购交期分析看板", page_icon="⏱", layout="wide")
+st.title("📦 月度采购交期分析看板")
 st.markdown("---")
 
 # -------------------------- 加载数据（已修复正确链接） --------------------------
 @st.cache_data(ttl=3600)
 def load_data():
     try:
-        url = "https://github.com/Jane-zzz-123/caigoujiaoqi/raw/main/caigoushuju.xlsx"
+        url = "https://github.com/Jane-zzz-123/TOruanzhu/raw/main/caigoushujuTORUANZHU.xlsx"
         response = requests.get(url, timeout=15)
         response.raise_for_status()
         excel_file = BytesIO(response.content)
