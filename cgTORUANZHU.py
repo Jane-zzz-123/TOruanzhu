@@ -91,13 +91,13 @@ st.markdown("---")
 # -------------------------- 核心指标（订单数 + 采购量 双统计） --------------------------
 # === 1. 当前月 ===
 current_total = len(df_current)
-current_on_time = len(df_current[df_current["交期状态"] == "提前/准时"])
+current_on_time = len(df_current[df_current["交期状态"] == "达标"])
 current_overdue = len(df_current[df_current["交期状态"] == "逾期"])
 current_on_time_rate = (current_on_time / current_total * 100) if (current_total > 0 and not pd.isna(current_total)) else 0.0
 current_diff_avg = df_current["预计-实际交期的差值"].mean() if current_total > 0 else 0.0
 
 current_qty = df_current["采购量"].sum()
-current_on_time_qty = df_current[df_current["交期状态"] == "提前/准时"]["采购量"].sum()
+current_on_time_qty = df_current[df_current["交期状态"] == "达标"]["采购量"].sum()
 current_overdue_qty = df_current[df_current["交期状态"] == "逾期"]["采购量"].sum()
 
 # ✅ 新增：采购量准时率
@@ -105,13 +105,13 @@ current_qty_on_time_rate = (current_on_time_qty / current_qty * 100) if current_
 
 # === 2. 上月 ===
 last_total = len(df_last) if not df_last.empty else 0
-last_on_time = len(df_last[df_last["交期状态"] == "提前/准时"]) if not df_last.empty else 0
+last_on_time = len(df_last[df_last["交期状态"] == "达标"]) if not df_last.empty else 0
 last_overdue = len(df_last[df_last["交期状态"] == "逾期"]) if not df_last.empty else 0
 last_on_time_rate = (last_on_time / last_total * 100) if last_total > 0 else 0.0
 last_diff_avg = df_last["预计-实际交期的差值"].mean() if (not df_last.empty and last_total > 0) else 0.0
 
 last_qty = df_last["采购量"].sum() if not df_last.empty else 0
-last_on_time_qty = df_last[df_last["交期状态"] == "提前/准时"]["采购量"].sum() if not df_last.empty else 0
+last_on_time_qty = df_last[df_last["交期状态"] == "达标"]["采购量"].sum() if not df_last.empty else 0
 last_overdue_qty = df_last[df_last["交期状态"] == "逾期"]["采购量"].sum() if not df_last.empty else 0
 
 # ✅ 新增：上月采购量准时率
@@ -238,7 +238,7 @@ double_card(col1, "PO单数",
             current_qty, last_qty,
             "", is_good_up=False, bg_color="#fafbfc", is_int=True)
 
-double_card(col2, "提前/准时",
+double_card(col2, "达标",
             current_on_time, last_on_time,
             current_on_time_qty, last_on_time_qty,
             "", is_good_up=True, bg_color="#f0fdf4", is_int=True)
@@ -283,7 +283,7 @@ with c1:
     st.markdown(f"#### {selected_month} 准时率分布")
     if current_total > 0:
         pie_data = pd.DataFrame({
-            "状态": ["提前/准时", "逾期"],
+            "状态": ["达标", "逾期"],
             "数量": [current_on_time, current_overdue]
         })
         fig = px.pie(
@@ -291,8 +291,8 @@ with c1:
             values="数量",
             names="状态",
             color="状态",
-            # 这里强制设置颜色：提前/准时用绿色，逾期用红色
-            color_discrete_map={"提前/准时": "#28a745", "逾期": "#dc3545"},
+            # 这里强制设置颜色：达标用绿色，逾期用红色
+            color_discrete_map={"达标": "#28a745", "逾期": "#dc3545"},
             hole=0.3,
             labels={"数量": "订单数"}
         )
@@ -308,7 +308,7 @@ with c2:
         on_time_diff = diff_counts[diff_counts.index >= 0]
         overdue_diff = diff_counts[diff_counts.index < 0]
 
-        st.markdown("✅ **提前/准时**")
+        st.markdown("✅ **达标**")
         for day, cnt in on_time_diff.items():
             bar = "🟩" * min(cnt, 20)
             st.markdown(f"- +{day}天: {bar} ({cnt}单)")
@@ -543,7 +543,7 @@ st.subheader("🏭 各厂家交期统计汇总")
 if not df_current.empty:
     factory_df = df_current.groupby("厂家").agg(
         PO单数=("采购单号", "count"),
-        提前准时订单=("交期状态", lambda x: (x == "提前/准时").sum()),
+        提前准时订单=("交期状态", lambda x: (x == "达标").sum()),
         逾期订单=("交期状态", lambda x: (x == "逾期").sum())
     ).reset_index()
 
@@ -567,7 +567,7 @@ st.subheader("📊 厂家订单数 & 准时率 组合分析")
 if not df_current.empty:
     factory_chart = df_current.groupby("厂家").agg(
         订单数=("采购单号","count"),
-        准时订单数=("交期状态",lambda x: (x=="提前/准时").sum())
+        准时订单数=("交期状态",lambda x: (x=="达标").sum())
     ).reset_index()
     factory_chart["准时率(%)"] = (factory_chart["准时订单数"]/factory_chart["订单数"]*100).round(1)
     factory_chart = factory_chart.sort_values("订单数", ascending=False)
@@ -624,7 +624,7 @@ df_valid = df_current[
 # 计算所有厂家指标
 factory_analysis = df_current.groupby("厂家").agg(
     订单总数=("采购单号", "count"),
-    准时订单数=("交期状态", lambda x: (x == "提前/准时").sum()),
+    准时订单数=("交期状态", lambda x: (x == "达标").sum()),
     逾期订单数=("交期状态", lambda x: (x == "逾期").sum()),
     平均实际交期=("实际采购交期", "mean"),
     最长实际交期=("实际采购交期", "max"),
@@ -712,7 +712,7 @@ else:
     # 1. 统计每个厂家 + 每个品类 的数据
     category_stats = df_category.groupby(["厂家", "产品分类"]).agg(
         订单数=("采购单号", "count"),
-        准时数=("交期状态", lambda x: (x == "提前/准时").sum()),
+        准时数=("交期状态", lambda x: (x == "达标").sum()),
         逾期数=("交期状态", lambda x: (x == "逾期").sum()),
         平均交期=("实际采购交期", "mean"),
         最长交期=("实际采购交期", "max")
@@ -725,7 +725,7 @@ else:
     # 2. 厂家整体数据（总订单、整体准时率）
     factory_total = df_category.groupby("厂家").agg(
         总订单=("采购单号", "count"),
-        总准时=("交期状态", lambda x: (x == "提前/准时").sum())
+        总准时=("交期状态", lambda x: (x == "达标").sum())
     ).reset_index()
     factory_total["整体准时率%"] = round(
         factory_total["总准时"] / factory_total["总订单"] * 100, 1
@@ -1123,7 +1123,7 @@ st.subheader("📊 产品分类 × 厂家 履约对比表")
 # 1. 基础数据计算
 compare_df = df_current.groupby(["产品分类", "厂家"], as_index=False).agg(
     订单数=("采购单号", "count"),
-    准时数=("交期状态", lambda x: (x == "提前/准时").sum()),
+    准时数=("交期状态", lambda x: (x == "达标").sum()),
     逾期数=("交期状态", lambda x: (x == "逾期").sum()),
     平均交期=("实际采购交期", "mean"),
     采购量=("采购量", "sum"),
@@ -1221,7 +1221,7 @@ df_valid_multi = df_filtered_by_month[
 
 compare_df = df_valid_multi.groupby(["产品分类", "厂家"]).agg(
     订单数=("采购单号", "count"),
-    准时数=("交期状态", lambda x: (x == "提前/准时").sum()),
+    准时数=("交期状态", lambda x: (x == "达标").sum()),
     逾期数=("交期状态", lambda x: (x == "逾期").sum()),
     平均交期=("实际采购交期", "mean"),
     采购量=("采购量", "sum"),
@@ -1417,7 +1417,7 @@ cap_max = cap_max.rename("历史最高单月产能")
 # ===================== 核心修改：近三个月准时率 =====================
 df_p3 = df_final[df_final["到货年月"].isin(p3)].copy()
 if not df_p3.empty:
-    df_p3["准时标记"] = (df_p3["交期状态"] == "提前/准时").astype(int)
+    df_p3["准时标记"] = (df_p3["交期状态"] == "达标").astype(int)
     on_time_rate = df_p3.groupby("厂家")["准时标记"].mean() * 100
     on_time_rate = on_time_rate.round(1).rename("近三个月准时率%")
 else:
@@ -1491,7 +1491,7 @@ df_filter = df_trend.copy()
 # =========================================================
 df_stat = df_filter.groupby("到货年月_str").agg(
     总订单数=("采购单号", "count"),
-    准时订单数=("交期状态", lambda x: (x == "提前/准时").sum()),
+    准时订单数=("交期状态", lambda x: (x == "达标").sum()),
     逾期订单数=("交期状态", lambda x: (x == "逾期").sum())
 ).reset_index()
 
@@ -1677,7 +1677,7 @@ st.subheader("🏭 全厂家履约总结卡片")
 # 基于已筛选数据统计卡片
 df_factory_summary = df_filter.groupby("厂家").agg(
     总订单数=("采购单号", "count"),
-    准时订单数=("交期状态", lambda x: (x == "提前/准时").sum()),
+    准时订单数=("交期状态", lambda x: (x == "达标").sum()),
     逾期订单数=("交期状态", lambda x: (x == "逾期").sum()),
     平均交期=("实际采购交期", "mean"),
     总采购量=("采购量", "sum")
@@ -1721,7 +1721,7 @@ st.markdown("---")
 st.subheader("📊 履约趋势：订单结构 + 准时率")
 df_stat = df_filter.groupby("到货年月_str").agg(
     总订单数=("采购单号", "count"),
-    准时订单数=("交期状态", lambda x: (x == "提前/准时").sum()),
+    准时订单数=("交期状态", lambda x: (x == "达标").sum()),
     逾期订单数=("交期状态", lambda x: (x == "逾期").sum())
 ).reset_index()
 
@@ -1808,7 +1808,7 @@ def get_rolling_by_factory_month(df, factory, current_month_str):
 
     # 2. 近3个月准时率
     total = len(df_fp)
-    ontime = (df_fp["交期状态"] == "提前/准时").sum()
+    ontime = (df_fp["交期状态"] == "达标").sum()
     rate = (ontime / total * 100) if total > 0 else 0.0
     rate_rounded = round(rate, 1)
 
