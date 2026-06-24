@@ -259,8 +259,8 @@ def get_3month_trend(df_all, calc_func, filter_status=None, line_color="#428bca"
             y=row["val"],
             text=f"{row['month_str']}<br>{row['val']}",
             showarrow=False,
-            font=dict(size=8, color=line_color),
-            yshift=8  # 文字向上偏移，避开圆点
+            font=dict(size=10, color=line_color),
+            yshift=10
         )
 
     fig.update_layout(
@@ -307,8 +307,8 @@ def get_rate_3month_trend(df_all):
             y=row["rate"],
             text=f"{row['month']}<br>{row['rate']}%",
             showarrow=False,
-            font=dict(size=8, color="#ff7f0e"),
-            yshift=8
+            font=dict(size=10, color="#ff7f0e"),
+            yshift=10
         )
 
     fig.update_layout(
