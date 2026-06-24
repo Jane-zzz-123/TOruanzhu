@@ -259,13 +259,13 @@ def get_3month_trend(df_all, calc_func, filter_status=None, line_color="#428bca"
             y=row["val"],
             text=f"{row['month_str']}<br>{row['val']}",
             showarrow=False,
-            font=dict(size=10, color=line_color),
-            yshift=10
+            font=dict(size=11, color=line_color),
+            yshift=12
         )
 
     fig.update_layout(
         height=72,
-        margin=dict(l=0, r=0, t=22, b=0),  # 增加顶部边距容纳文字
+        margin=dict(l=0, r=0, t=30, b=0),  # 加大顶部留白，容纳大号文字
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(0,0,0,0)",
         xaxis=dict(visible=False),
@@ -307,13 +307,13 @@ def get_rate_3month_trend(df_all):
             y=row["rate"],
             text=f"{row['month']}<br>{row['rate']}%",
             showarrow=False,
-            font=dict(size=10, color="#ff7f0e"),
-            yshift=10
+            font=dict(size=11, color="#ff7f0e"),
+            yshift=14
         )
 
     fig.update_layout(
         height=72,
-        margin=dict(l=0, r=0, t=22, b=0),
+        margin=dict(l=0, r=0, t=30, b=0),
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(0,0,0,0)",
         xaxis=dict(visible=False),
@@ -350,13 +350,13 @@ def get_diff_3month_trend(df_all):
             y=row["val"],
             text=f"{row['month_str']}<br>{val_round}天",
             showarrow=False,
-            font=dict(size=8, color="#9b59b6"),
-            yshift=8
+            font=dict(size=11, color="#9b59b6"),
+            yshift=12
         )
 
     fig.update_layout(
         height=72,
-        margin=dict(l=0, r=0, t=22, b=0),
+        margin=dict(l=0, r=0, t=30, b=0),
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(0,0,0,0)",
         xaxis=dict(visible=False),
