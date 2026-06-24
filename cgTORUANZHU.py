@@ -227,24 +227,21 @@ def card(col, title, current, last, suffix="", is_good_up=True, bg_color="#fafbf
 import plotly.graph_objects as go
 import pandas as pd
 
-# -------------------------- 通用：近三月迷你面积趋势 --------------------------
-def get_3month_trend(df_all, calc_func, filter_status=None, line_color="#428bca"):
+# -------------------------- 通用：近三月迷你面积趋势（带hover年月+数值） --------------------------
+def get_3month_trend(df_all, calc_func, filter_status=None, line_color="#428bca", metric_name="订单"):
     df_trend = df_all.copy()
-
     if filter_status:
         df_trend = df_trend[df_trend["交期状态"] == filter_status]
 
     df_trend["month_p"] = pd.to_datetime(df_trend["到货年月"]).dt.to_period("M")
-
-    agg_df = df_trend.groupby("month_p").agg(
-        val=("采购单号", calc_func)
-    ).reset_index()
-
+    agg_df = df_trend.groupby("month_p").agg(val=("采购单号", calc_func)).reset_index()
     agg_df["month_str"] = agg_df["month_p"].astype(str)
     agg_df = agg_df.tail(3)
 
-    fig = go.Figure()
+    # 拼接hover显示文字：分行展示年月+指标值
+    hover_text = [f"{m}<br>{metric_name}：{v}单" for m, v in zip(agg_df["month_str"], agg_df["val"])]
 
+    fig = go.Figure()
     fig.add_trace(go.Scatter(
         x=agg_df["month_str"],
         y=agg_df["val"],
@@ -253,6 +250,8 @@ def get_3month_trend(df_all, calc_func, filter_status=None, line_color="#428bca"
         marker=dict(size=5, color=line_color),
         fill="tozeroy",
         fillcolor=f"rgba{tuple(int(line_color.lstrip('#')[i:i+2], 16) for i in (0, 2, 4)) + (0.12,)}",
+        text=hover_text,
+        hovertemplate="%{text}<extra></extra>", # extra 隐藏多余空白框
         showlegend=False
     ))
 
@@ -264,29 +263,26 @@ def get_3month_trend(df_all, calc_func, filter_status=None, line_color="#428bca"
         xaxis=dict(visible=False),
         yaxis=dict(visible=False)
     )
-
     return fig
 
 
-# -------------------------- 准时率近三月趋势：橙色强调 --------------------------
+# -------------------------- 准时率近三月趋势（hover显示年月+百分比） --------------------------
 def get_rate_3month_trend(df_all):
     df_trend = df_all.copy()
     df_trend["month_p"] = pd.to_datetime(df_trend["到货年月"]).dt.to_period("M")
-
     month_list = []
     rate_list = []
-
     for m, group in df_trend.groupby("month_p"):
         total = len(group)
         on = len(group[group["交期状态"] == "达标"])
         rate = round(on / total * 100, 1) if total > 0 else 0
         month_list.append(str(m))
         rate_list.append(rate)
-
     df_agg = pd.DataFrame({"month": month_list, "rate": rate_list}).tail(3)
 
-    fig = go.Figure()
+    hover_text = [f"{m}<br>订单准时率：{r}%" for m, r in zip(df_agg["month"], df_agg["rate"])]
 
+    fig = go.Figure()
     fig.add_trace(go.Scatter(
         x=df_agg["month"],
         y=df_agg["rate"],
@@ -295,9 +291,10 @@ def get_rate_3month_trend(df_all):
         marker=dict(size=5, color="#ff7f0e"),
         fill="tozeroy",
         fillcolor="rgba(255, 127, 14, 0.12)",
+        text=hover_text,
+        hovertemplate="%{text}<extra></extra>",
         showlegend=False
     ))
-
     fig.update_layout(
         height=72,
         margin=dict(l=0, r=0, t=0, b=0),
@@ -306,24 +303,20 @@ def get_rate_3month_trend(df_all):
         xaxis=dict(visible=False),
         yaxis=dict(visible=False)
     )
-
     return fig
 
 
-# -------------------------- 平均交期差值近三月趋势：紫色 --------------------------
+# -------------------------- 平均交期差值近三月趋势（hover年月+天数） --------------------------
 def get_diff_3month_trend(df_all):
     df_trend = df_all.copy()
     df_trend["month_p"] = pd.to_datetime(df_trend["到货年月"]).dt.to_period("M")
-
-    agg_df = df_trend.groupby("month_p").agg(
-        val=("预计-实际交期的差值", "mean")
-    ).reset_index()
-
+    agg_df = df_trend.groupby("month_p").agg(val=("预计-实际交期的差值", "mean")).reset_index()
     agg_df["month_str"] = agg_df["month_p"].astype(str)
     agg_df = agg_df.tail(3)
 
-    fig = go.Figure()
+    hover_text = [f"{m}<br>平均交期差：{round(v,2)}天" for m, v in zip(agg_df["month_str"], agg_df["val"])]
 
+    fig = go.Figure()
     fig.add_trace(go.Scatter(
         x=agg_df["month_str"],
         y=agg_df["val"],
@@ -332,9 +325,10 @@ def get_diff_3month_trend(df_all):
         marker=dict(size=5, color="#9b59b6"),
         fill="tozeroy",
         fillcolor="rgba(155, 89, 182, 0.12)",
+        text=hover_text,
+        hovertemplate="%{text}<extra></extra>",
         showlegend=False
     ))
-
     fig.update_layout(
         height=72,
         margin=dict(l=0, r=0, t=0, b=0),
@@ -343,11 +337,9 @@ def get_diff_3month_trend(df_all):
         xaxis=dict(visible=False),
         yaxis=dict(visible=False)
     )
-
     return fig
 
 st.subheader(f"📆 {selected_month} 整体分析")
-
 col1, col2, col3, col4, col5 = st.columns([1, 1, 1, 1, 1])
 
 # PO单数
@@ -357,7 +349,7 @@ with col1:
                 current_qty, last_qty,
                 "", is_good_up=False, bg_color="#fafbfc", is_int=True)
     st.caption("近三月订单趋势")
-    fig_po = get_3month_trend(df, "count", line_color="#428bca")
+    fig_po = get_3month_trend(df, "count", line_color="#428bca", metric_name="PO单数")
     st.plotly_chart(fig_po, use_container_width=True)
 
 # 达标
@@ -367,7 +359,7 @@ with col2:
                 current_on_time_qty, last_on_time_qty,
                 "", is_good_up=True, bg_color="#f0fdf4", is_int=True)
     st.caption("近三月达标单趋势")
-    fig_ok = get_3month_trend(df, "count", filter_status="达标", line_color="#28a745")
+    fig_ok = get_3month_trend(df, "count", filter_status="达标", line_color="#28a745", metric_name="达标单")
     st.plotly_chart(fig_ok, use_container_width=True)
 
 # 逾期
@@ -377,7 +369,7 @@ with col3:
                 current_overdue_qty, last_overdue_qty,
                 "", is_good_up=False, bg_color="#fef2f2", is_int=True)
     st.caption("近三月逾期单趋势")
-    fig_over = get_3month_trend(df, "count", filter_status="逾期", line_color="#dc3545")
+    fig_over = get_3month_trend(df, "count", filter_status="逾期", line_color="#dc3545", metric_name="逾期单")
     st.plotly_chart(fig_over, use_container_width=True)
 
 # 准时率
