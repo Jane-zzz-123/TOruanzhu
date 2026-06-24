@@ -229,29 +229,170 @@ def card(col, title, current, last, suffix="", is_good_up=True, bg_color="#fafbf
         """, unsafe_allow_html=True)
 
 
-# -------------------------- 绘制卡片 --------------------------
-st.subheader(f"📆 {selected_month} 整体分析")
+# 新增导入（如果顶部没导入plotly相关，确保存在）
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
+import pandas as pd
+
+# ===================== 新增工具函数：子弹图生成 =====================
+def create_bullet_chart(title, curr_val, base_val, threshold_warn, suffix="", better_smaller=False):
+    """
+    子弹图：curr=当月, base=上月基准, threshold=预警阈值
+    better_smaller=True：数值越小越好（如逾期、交期差值）
+    better_smaller=False：数值越大越好（达标、准时率、订单量）
+    """
+    fig = go.Figure()
+    # 预警红色区间
+    fig.add_trace(go.Bar(
+        x=[threshold_warn], y=[0], orientation="h", width=0.6,
+        marker_color="#ffcccc", showlegend=False
+    ))
+    # 上月基准灰色条
+    fig.add_trace(go.Bar(
+        x=[base_val], y=[0], orientation="h", width=0.6,
+        marker_color="#cccccc", showlegend=False
+    ))
+    # 本月实际主条
+    if better_smaller:
+        bar_color = "#28a745" if curr_val <= base_val else "#dc3545"
+    else:
+        bar_color = "#28a745" if curr_val >= base_val else "#dc3545"
+    fig.add_trace(go.Bar(
+        x=[curr_val], y=[0], orientation="h", width=0.6,
+        marker_color=bar_color, showlegend=False
+    ))
+    # 文字标注数值
+    fig.add_annotation(x=curr_val, y=0, text=f"{curr_val}{suffix}",
+                       showarrow=False, font={"size":12, "weight":"bold"}, xshift=5)
+    fig.add_annotation(x=base_val, y=-0.25, text=f"上月基准:{base_val}{suffix}",
+                       showarrow=False, font={"size":10, "color":"#666"})
+    # 布局精简
+    fig.update_layout(
+        title=dict(text=title, font={"size":14}, x=0),
+        height=120, margin=dict(l=0, r=30, t=20, b=0),
+        yaxis=dict(visible=False), xaxis_title="",
+        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)"
+    )
+    return fig
+
+# ===================== 新增工具函数：迷你历史折线 =====================
+def create_mini_trend(df_all, metric_name, agg_func, suffix=""):
+    """
+    生成全历史月份迷你折线
+    df_all：原始全量df
+    metric_name：聚合字段名
+    agg_func：sum/mean/count
+    """
+    # 按月聚合全历史数据
+    trend_df = df_all.groupby("到货年月").agg(
+        val=(metric_name, agg_func)
+    ).reset_index()
+    trend_df = trend_df.sort_values("到货年月")
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(
+        x=trend_df["到货年月"], y=trend_df["val"],
+        mode="lines+markers", line={"color":"#3498db", "width":2},
+        marker={"size":4}, showlegend=False
+    ))
+    fig.update_layout(
+        height=80, margin=dict(l=0, r=0, t=0, b=0),
+        xaxis=dict(tickfont={"size":8}), yaxis=dict(tickfont={"size":8}),
+        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)"
+    )
+    return fig
+
+# ===================== 替换原来的卡片绘制区域 =====================
+st.subheader(f"📆 {selected_month} 整体分析（子弹图对比+历史趋势）")
 col1, col2, col3, col4, col5 = st.columns(5)
 
-double_card(col1, "PO单数",
-            current_total, last_total,
-            current_qty, last_qty,
-            "", is_good_up=False, bg_color="#fafbfc", is_int=True)
+# -------------------------- 指标1：PO总单数 --------------------------
+with col1:
+    # 子弹图（阈值取上月1.2倍作为预警上限，越大越好）
+    fig_po = create_bullet_chart(
+        title="PO总订单数",
+        curr_val=current_total,
+        base_val=last_total,
+        threshold_warn=int(last_total * 1.2) if last_total != 0 else current_total*1.2,
+        suffix="单",
+        better_smaller=False
+    )
+    st.plotly_chart(fig_po, use_container_width=True)
+    # 迷你折线
+    st.caption("历史订单趋势")
+    fig_trend_po = create_mini_trend(df, "采购单号", "count", suffix="单")
+    st.plotly_chart(fig_trend_po, use_container_width=True)
 
-double_card(col2, "达标",
-            current_on_time, last_on_time,
-            current_on_time_qty, last_on_time_qty,
-            "", is_good_up=True, bg_color="#f0fdf4", is_int=True)
+# -------------------------- 指标2：达标订单 --------------------------
+with col2:
+    fig_ok = create_bullet_chart(
+        title="达标订单数",
+        curr_val=current_on_time,
+        base_val=last_on_time,
+        threshold_warn=int(last_on_time * 0.8) if last_on_time !=0 else current_on_time*0.8,
+        suffix="单",
+        better_smaller=False
+    )
+    st.plotly_chart(fig_ok, use_container_width=True)
+    st.caption("达标单历史趋势")
+    fig_trend_ok = create_mini_trend(
+        df[df["交期状态"]=="达标"], "采购单号", "count", suffix="单"
+    )
+    st.plotly_chart(fig_trend_ok, use_container_width=True)
 
-double_card(col3, "逾期",
-            current_overdue, last_overdue,
-            current_overdue_qty, last_overdue_qty,
-            "", is_good_up=False, bg_color="#fef2f2", is_int=True)
+# -------------------------- 指标3：逾期订单 --------------------------
+with col3:
+    fig_over = create_bullet_chart(
+        title="逾期订单数",
+        curr_val=current_overdue,
+        base_val=last_overdue,
+        threshold_warn=int(last_overdue * 1.1) if last_overdue !=0 else current_overdue*1.1,
+        suffix="单",
+        better_smaller=True  # 逾期越少越好
+    )
+    st.plotly_chart(fig_over, use_container_width=True)
+    st.caption("逾期单历史趋势")
+    fig_trend_over = create_mini_trend(
+        df[df["交期状态"]=="逾期"], "采购单号", "count", suffix="单"
+    )
+    st.plotly_chart(fig_trend_over, use_container_width=True)
 
-# ✅ 准时率（双口径）
-rate_card(col4, current_on_time_rate, last_on_time_rate, current_qty_on_time_rate, last_qty_on_time_rate)
+# -------------------------- 指标4：订单准时率 --------------------------
+with col4:
+    fig_rate = create_bullet_chart(
+        title="订单准时率",
+        curr_val=round(current_on_time_rate,1),
+        base_val=round(last_on_time_rate,1),
+        threshold_warn=80,  # 自定义预警阈值：低于80%标红
+        suffix="%",
+        better_smaller=False
+    )
+    st.plotly_chart(fig_rate, use_container_width=True)
+    st.caption("准时率历史趋势")
+    # 准时率单独计算历史
+    rate_trend = df.groupby("到货年月").apply(
+        lambda x: round((x["交期状态"]=="达标").sum() / len(x) *100,1) if len(x)>0 else 0
+    ).reset_index(name="val")
+    fig_trend_rate = go.Figure(go.Scatter(
+        x=rate_trend["到货年月"], y=rate_trend["val"],
+        mode="lines+markers", line={"color":"#3498db", "width":2}, marker={"size":4}
+    ))
+    fig_trend_rate.update_layout(height=80, margin=dict(l=0,r=0,t=0,b=0), paper_bgcolor="rgba(0,0,0,0)")
+    st.plotly_chart(fig_trend_rate, use_container_width=True)
 
-card(col5, "平均交期差值", current_diff_avg, last_diff_avg, "天", is_good_up=False)
+# -------------------------- 指标5：平均交期差值 --------------------------
+with col5:
+    fig_diff = create_bullet_chart(
+        title="平均交期差值",
+        curr_val=round(current_diff_avg,2),
+        base_val=round(last_diff_avg,2),
+        threshold_warn=3,  # 差值大于3天预警
+        suffix="天",
+        better_smaller=True  # 差值越小越好，负数代表提前
+    )
+    st.plotly_chart(fig_diff, use_container_width=True)
+    st.caption("交期差历史趋势")
+    fig_trend_diff = create_mini_trend(df, "预计-实际交期的差值", "mean", suffix="天")
+    st.plotly_chart(fig_trend_diff, use_container_width=True)
 
 st.markdown("---")
 
