@@ -118,8 +118,7 @@ last_overdue_qty = df_last[df_last["交期状态"] == "逾期"]["采购量"].sum
 last_qty_on_time_rate = (last_on_time_qty / last_qty * 100) if last_qty > 0 else 0.0
 
 
-# -------------------------- 双指标卡片组件（订单数 + 采购量） --------------------------
-# -------------------------- 双指标卡片：圆角矩形 + 左侧彩条 --------------------------
+# -------------------------- 双指标卡片（稳定圆角版，无绝对定位，不会消失） --------------------------
 def double_card(col, title,
                 current_cnt, last_cnt,
                 current_qty, last_qty,
@@ -128,23 +127,22 @@ def double_card(col, title,
     if last_cnt == 0:
         pct_cnt = "新数据"
     else:
-        pct_cnt = (current_cnt - last_cnt) / last_cnt * 100
-        pct_cnt = f"{pct_cnt:+.2f}%"
+        pct_cnt = f"{((current_cnt - last_cnt) / last_cnt * 100):+.2f}%"
 
     if last_qty == 0:
         pct_qty = "新数据"
     else:
-        pct_qty = (current_qty - last_qty) / last_qty * 100
-        pct_qty = f"{pct_qty:+.2f}%"
+        pct_qty = f"{((current_qty - last_qty) / last_qty * 100):+.2f}%"
 
+    # 文字颜色逻辑
     if is_good_up:
         color_cnt = "#28a745" if current_cnt >= last_cnt else "#dc3545"
         color_qty = "#28a745" if current_qty >= last_qty else "#dc3545"
-        bar_color = "#28a745"
+        left_border = "5px solid #28a745"
     else:
         color_cnt = "#dc3545" if current_cnt >= last_cnt else "#28a745"
         color_qty = "#dc3545" if current_qty >= last_qty else "#28a745"
-        bar_color = "#dc3545"
+        left_border = "5px solid #dc3545"
 
     current_cnt_str = f"{int(current_cnt)}" if is_int else f"{current_cnt:.2f}"
     last_cnt_str = f"{int(last_cnt)}" if is_int else f"{last_cnt:.2f}"
@@ -153,88 +151,66 @@ def double_card(col, title,
 
     with col:
         st.markdown(f"""
-        <div style="padding:16px; border-radius:10px; background:{bg_color}; border:1px solid #e5e7eb; box-shadow:0 1px 4px rgba(0,0,0,0.06); position:relative; overflow:hidden;">
-            <div style="position:absolute; left:0; top:0; bottom:0; width:5px; background:{bar_color};"></div>
-            <div style="padding-left:12px;">
-                <div style="font-size:14px; color:#666; margin-bottom:6px;">{title}</div>
-                <div style="font-size:20px; font-weight:700; color:#111;">{current_cnt_str} 单</div>
-                <div style="font-size:12px; color:{color_cnt}; margin-top:2px;">
-                    环比 {pct_cnt}（上月：{last_cnt_str}）
-                </div>
-                <div style="height:8px;"></div>
-                <div style="font-size:16px; font-weight:600; color:#333;">{current_qty_str} 件</div>
-                <div style="font-size:12px; color:{color_qty}; margin-top:2px;">
-                    环比 {pct_qty}（上月：{last_qty_str}）
-                </div>
-            </div>
+        <div style="padding:14px 14px 14px 12px; border-radius:10px; background:{bg_color}; border-left:{left_border}; border:1px solid #e5e7eb; box-shadow:0 1px 4px rgba(0,0,0,0.05);">
+            <div style="font-size:14px; color:#666; margin-bottom:6px;">{title}</div>
+            <div style="font-size:20px; font-weight:700; color:#111;">{current_cnt_str} 单</div>
+            <div style="font-size:12px; color:{color_cnt}; margin-top:2px;">环比 {pct_cnt}（上月：{last_cnt_str}）</div>
+            <div style="height:8px;"></div>
+            <div style="font-size:16px; font-weight:600; color:#333;">{current_qty_str} 件</div>
+            <div style="font-size:12px; color:{color_qty}; margin-top:2px;">环比 {pct_qty}（上月：{last_qty_str}）</div>
         </div>
         """, unsafe_allow_html=True)
 
 
-# -------------------------- 准时率双口径卡片：圆角矩形 + 左侧蓝条 --------------------------
+# -------------------------- 准时率双口径卡片 --------------------------
 def rate_card(col, order_curr, order_last, qty_curr, qty_last, bg_color="#eff6ff"):
-
     if order_last == 0:
         op = "新数据"
     else:
-        op = f"{(order_curr - order_last)/order_last*100:+.2f}%"
+        op = f"{((order_curr - order_last)/order_last*100):+.2f}%"
     oc = "#28a745" if order_curr >= order_last else "#dc3545"
 
     if qty_last == 0:
         qp = "新数据"
     else:
-        qp = f"{(qty_curr - qty_last)/qty_last*100:+.2f}%"
+        qp = f"{((qty_curr - qty_last)/qty_last*100):+.2f}%"
     qc = "#28a745" if qty_curr >= qty_last else "#dc3545"
 
     with col:
         st.markdown(f"""
-        <div style="padding:16px; border-radius:10px; background:{bg_color}; border:1px solid #e5e7eb; box-shadow:0 1px 4px rgba(0,0,0,0.06); position:relative; overflow:hidden;">
-            <div style="position:absolute; left:0; top:0; bottom:0; width:5px; background:#3478f6;"></div>
-            <div style="padding-left:12px;">
-                <div style="font-size:14px; color:#666; margin-bottom:6px;">准时率</div>
-                <div style="font-size:18px; font-weight:700; color:#111;">订单：{order_curr:.1f}%</div>
-                <div style="font-size:12px; color:{oc}; margin-bottom:4px;">
-                    环比 {op}（上月：{order_last:.1f}%）
-                </div>
-                <div style="font-size:18px; font-weight:700; color:#111;">采购量：{qty_curr:.1f}%</div>
-                <div style="font-size:12px; color:{qc};">
-                    环比 {qp}（上月：{qty_last:.1f}%）
-                </div>
-            </div>
+        <div style="padding:14px 14px 14px 12px; border-radius:10px; background:{bg_color}; border-left:5px solid #3478f6; border:1px solid #e5e7eb; box-shadow:0 1px 4px rgba(0,0,0,0.05);">
+            <div style="font-size:14px; color:#666; margin-bottom:6px;">准时率</div>
+            <div style="font-size:18px; font-weight:700; color:#111;">订单：{order_curr:.1f}%</div>
+            <div style="font-size:12px; color:{oc}; margin-bottom:4px;">环比 {op}（上月：{order_last:.1f}%）</div>
+            <div style="font-size:18px; font-weight:700; color:#111;">采购量：{qty_curr:.1f}%</div>
+            <div style="font-size:12px; color:{qc};">环比 {qp}（上月：{qty_last:.1f}%）</div>
         </div>
         """, unsafe_allow_html=True)
 
 
-# -------------------------- 普通单指标卡片：圆角矩形 --------------------------
+# -------------------------- 单指标卡片（平均交期差值） --------------------------
 def card(col, title, current, last, suffix="", is_good_up=True, bg_color="#fafbfc", is_int=False):
-
     if last == 0:
         pct = "新数据"
     else:
-        pct = (current - last) / last * 100
-        pct = f"{pct:+.2f}%"
+        pct = f"{((current - last) / last * 100):+.2f}%"
 
     if is_good_up:
         color = "#28a745" if current >= last else "#dc3545"
-        bar_color = "#28a745"
+        left_border = "5px solid #28a745"
     else:
         color = "#dc3545" if current >= last else "#28a745"
-        bar_color = "#dc3545"
+        left_border = "5px solid #dc3545"
 
     current_str = f"{int(current)}" if is_int else f"{current:.2f}"
     last_str = f"{int(last)}" if is_int else f"{last:.2f}"
 
     with col:
         st.markdown(f"""
-        <div style="padding:16px; border-radius:10px; background:{bg_color}; border:1px solid #e5e7eb; box-shadow:0 1px 4px rgba(0,0,0,0.06); position:relative; overflow:hidden;">
-            <div style="position:absolute; left:0; top:0; bottom:0; width:5px; background:{bar_color};"></div>
-            <div style="padding-left:12px;">
-                <div style="font-size:14px; color:#666; margin-bottom:6px;">{title}</div>
-                <div style="font-size:28px; font-weight:700; color:#111;">{current_str}{suffix}</div>
-                <div style="font-size:13px; color:{color}; margin-top:4px;">
-                    环比 {pct}（上月：{last_str}{suffix}）
-                </div>
-            </div>
+        <div style="padding:14px 14px 14px 12px; border-radius:10px; background:{bg_color}; border-left:{left_border}; border:1px solid #e5e7eb; box-shadow:0 1px 4px rgba(0,0,0,0.05);">
+            <div style="font-size:14px; color:#666; margin-bottom:6px;">{title}</div>
+            <div style="font-size:28px; font-weight:700; color:#111;">{current_str}{suffix}</div>
+            <div style="font-size:13px; color:{color}; margin-top:4px;">环比 {pct}（上月：{last_str}{suffix}）</div>
         </div>
         """, unsafe_allow_html=True)
 
