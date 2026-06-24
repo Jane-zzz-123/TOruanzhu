@@ -227,7 +227,7 @@ def card(col, title, current, last, suffix="", is_good_up=True, bg_color="#fafbf
 import plotly.graph_objects as go
 import pandas as pd
 
-# -------------------------- 通用：近三月迷你面积趋势（带hover年月+数值） --------------------------
+# -------------------------- 通用近三月面积趋势（折点固定文字标注） --------------------------
 def get_3month_trend(df_all, calc_func, filter_status=None, line_color="#428bca", metric_name="订单"):
     df_trend = df_all.copy()
     if filter_status:
@@ -238,10 +238,8 @@ def get_3month_trend(df_all, calc_func, filter_status=None, line_color="#428bca"
     agg_df["month_str"] = agg_df["month_p"].astype(str)
     agg_df = agg_df.tail(3)
 
-    # 拼接hover显示文字：分行展示年月+指标值
-    hover_text = [f"{m}<br>{metric_name}：{v}单" for m, v in zip(agg_df["month_str"], agg_df["val"])]
-
     fig = go.Figure()
+    # 填充面积+折线
     fig.add_trace(go.Scatter(
         x=agg_df["month_str"],
         y=agg_df["val"],
@@ -250,14 +248,24 @@ def get_3month_trend(df_all, calc_func, filter_status=None, line_color="#428bca"
         marker=dict(size=5, color=line_color),
         fill="tozeroy",
         fillcolor=f"rgba{tuple(int(line_color.lstrip('#')[i:i+2], 16) for i in (0, 2, 4)) + (0.12,)}",
-        text=hover_text,
-        hovertemplate="%{text}<extra></extra>", # extra 隐藏多余空白框
-        showlegend=False
+        showlegend=False,
+        hoverinfo="skip"
     ))
+
+    # 循环给每个折点添加固定文字注释（永久显示）
+    for idx, row in agg_df.iterrows():
+        fig.add_annotation(
+            x=row["month_str"],
+            y=row["val"],
+            text=f"{row['month_str']}<br>{row['val']}",
+            showarrow=False,
+            font=dict(size=8, color=line_color),
+            yshift=8  # 文字向上偏移，避开圆点
+        )
 
     fig.update_layout(
         height=72,
-        margin=dict(l=0, r=0, t=0, b=0),
+        margin=dict(l=0, r=0, t=22, b=0),  # 增加顶部边距容纳文字
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(0,0,0,0)",
         xaxis=dict(visible=False),
@@ -266,7 +274,7 @@ def get_3month_trend(df_all, calc_func, filter_status=None, line_color="#428bca"
     return fig
 
 
-# -------------------------- 准时率近三月趋势（hover显示年月+百分比） --------------------------
+# -------------------------- 准时率趋势（固定文字标注） --------------------------
 def get_rate_3month_trend(df_all):
     df_trend = df_all.copy()
     df_trend["month_p"] = pd.to_datetime(df_trend["到货年月"]).dt.to_period("M")
@@ -280,8 +288,6 @@ def get_rate_3month_trend(df_all):
         rate_list.append(rate)
     df_agg = pd.DataFrame({"month": month_list, "rate": rate_list}).tail(3)
 
-    hover_text = [f"{m}<br>订单准时率：{r}%" for m, r in zip(df_agg["month"], df_agg["rate"])]
-
     fig = go.Figure()
     fig.add_trace(go.Scatter(
         x=df_agg["month"],
@@ -291,13 +297,23 @@ def get_rate_3month_trend(df_all):
         marker=dict(size=5, color="#ff7f0e"),
         fill="tozeroy",
         fillcolor="rgba(255, 127, 14, 0.12)",
-        text=hover_text,
-        hovertemplate="%{text}<extra></extra>",
-        showlegend=False
+        showlegend=False,
+        hoverinfo="skip"
     ))
+
+    for idx, row in df_agg.iterrows():
+        fig.add_annotation(
+            x=row["month"],
+            y=row["rate"],
+            text=f"{row['month']}<br>{row['rate']}%",
+            showarrow=False,
+            font=dict(size=8, color="#ff7f0e"),
+            yshift=8
+        )
+
     fig.update_layout(
         height=72,
-        margin=dict(l=0, r=0, t=0, b=0),
+        margin=dict(l=0, r=0, t=22, b=0),
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(0,0,0,0)",
         xaxis=dict(visible=False),
@@ -306,15 +322,13 @@ def get_rate_3month_trend(df_all):
     return fig
 
 
-# -------------------------- 平均交期差值近三月趋势（hover年月+天数） --------------------------
+# -------------------------- 平均交期差值趋势（固定文字标注） --------------------------
 def get_diff_3month_trend(df_all):
     df_trend = df_all.copy()
     df_trend["month_p"] = pd.to_datetime(df_trend["到货年月"]).dt.to_period("M")
     agg_df = df_trend.groupby("month_p").agg(val=("预计-实际交期的差值", "mean")).reset_index()
     agg_df["month_str"] = agg_df["month_p"].astype(str)
     agg_df = agg_df.tail(3)
-
-    hover_text = [f"{m}<br>平均交期差：{round(v,2)}天" for m, v in zip(agg_df["month_str"], agg_df["val"])]
 
     fig = go.Figure()
     fig.add_trace(go.Scatter(
@@ -325,13 +339,24 @@ def get_diff_3month_trend(df_all):
         marker=dict(size=5, color="#9b59b6"),
         fill="tozeroy",
         fillcolor="rgba(155, 89, 182, 0.12)",
-        text=hover_text,
-        hovertemplate="%{text}<extra></extra>",
-        showlegend=False
+        showlegend=False,
+        hoverinfo="skip"
     ))
+
+    for idx, row in agg_df.iterrows():
+        val_round = round(row["val"], 2)
+        fig.add_annotation(
+            x=row["month_str"],
+            y=row["val"],
+            text=f"{row['month_str']}<br>{val_round}天",
+            showarrow=False,
+            font=dict(size=8, color="#9b59b6"),
+            yshift=8
+        )
+
     fig.update_layout(
         height=72,
-        margin=dict(l=0, r=0, t=0, b=0),
+        margin=dict(l=0, r=0, t=22, b=0),
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(0,0,0,0)",
         xaxis=dict(visible=False),
