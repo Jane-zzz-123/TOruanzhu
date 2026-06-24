@@ -118,18 +118,23 @@ last_overdue_qty = df_last[df_last["交期状态"] == "逾期"]["采购量"].sum
 last_qty_on_time_rate = (last_on_time_qty / last_qty * 100) if last_qty > 0 else 0.0
 
 
-# -------------------------- 双指标极简卡片（稳定必显示） --------------------------
+# -------------------------- 双指标原版优化正方形卡片 --------------------------
 def double_card(col, title,
                 current_cnt, last_cnt,
                 current_qty, last_qty,
                 suffix="", is_good_up=True, bg_color="#fafbfc", is_int=True):
-    # 环比计算
-    pct_cnt = "新数据" if last_cnt == 0 else f"{((current_cnt - last_cnt) / last_cnt * 100):+.2f}%"
-    pct_qty = "新数据" if last_qty == 0 else f"{((current_qty - last_qty) / last_qty * 100):+.2f}%"
+    # 订单环比
+    pct_cnt = "新数据" if last_cnt == 0 else f"{(current_cnt - last_cnt) / last_cnt * 100:+.2f}%"
+    # 采购量环比
+    pct_qty = "新数据" if last_qty == 0 else f"{(current_qty - last_qty) / last_qty * 100}%"
 
     # 涨跌颜色
-    color_cnt = "#28a745" if (current_cnt >= last_cnt and is_good_up) or (current_cnt < last_cnt and not is_good_up) else "#dc3545"
-    color_qty = "#28a745" if (current_qty >= last_qty and is_good_up) or (current_qty < last_qty and not is_good_up) else "#dc3545"
+    if is_good_up:
+        color_cnt = "#28a745" if current_cnt >= last_cnt else "#dc3545"
+        color_qty = "#28a745" if current_qty >= last_qty else "#dc3545"
+    else:
+        color_cnt = "#dc3545" if current_cnt >= last_cnt else "#28a745"
+        color_qty = "#dc3545" if current_qty >= last_qty else "#28a745"
 
     current_cnt_str = f"{int(current_cnt)}" if is_int else f"{current_cnt:.2f}"
     last_cnt_str = f"{int(last_cnt)}" if is_int else f"{last_cnt:.2f}"
@@ -137,59 +142,199 @@ def double_card(col, title,
     last_qty_str = f"{int(last_qty)}"
 
     with col:
-        # 极简CSS：仅圆角+背景，无双层边框、无阴影、无绝对定位
-        html = f"""
-        <div style="padding:12px; border-radius:10px; background:{bg_color};">
-            <div style="font-size:14px; color:#555;">{title}</div>
-            <div style="font-size:20px; font-weight:bold;">{current_cnt_str} 单</div>
-            <div style="font-size:12px; color:{color_cnt};">环比 {pct_cnt}（上月：{last_cnt_str}）</div>
-            <div style="margin-top:8px;"></div>
-            <div style="font-size:16px; font-weight:bold;">{current_qty_str} 件</div>
-            <div style="font-size:12px; color:{color_qty};">环比 {pct_qty}（上月：{last_qty_str}）</div>
+        # 标准正方形圆角，无复杂阴影/边框冲突
+        st.markdown(f"""
+        <div style="padding:16px; border-radius:12px; background:{bg_color}; border:1px solid #e5e7eb;">
+          <div style="font-size:15px; color:#555; margin-bottom:8px;">{title}</div>
+          <div style="font-size:22px; font-weight:600;">{current_cnt_str} 单</div>
+          <div style="font-size:12px; color:{color_cnt}; margin-top:2px;">环比 {pct_cnt}（上月：{last_cnt_str}）</div>
+          <div style="height:10px;"></div>
+          <div style="font-size:18px; font-weight:600; color:#333;">{current_qty_str} 件</div>
+          <div style="font-size:12px; color:{color_qty}; margin-top:2px;">环比 {pct_qty}（上月：{last_qty_str}）</div>
         </div>
-        """
-        st.markdown(html, unsafe_allow_html=True)
-
+        """, unsafe_allow_html=True)
 
 # -------------------------- 准时率卡片 --------------------------
 def rate_card(col, order_curr, order_last, qty_curr, qty_last, bg_color="#eff6ff"):
-    op = "新数据" if order_last == 0 else f"{((order_curr - order_last)/order_last*100):+.2f}%"
+    op = "新数据" if order_last == 0 else f"{(order_curr - order_last)/order_last*100:+.2f}%"
     oc = "#28a745" if order_curr >= order_last else "#dc3545"
-
-    qp = "新数据" if qty_last == 0 else f"{((qty_curr - qty_last)/qty_last*100):+.2f}%"
+    qp = "新数据" if qty_last == 0 else f"{(qty_curr - qty_last)/qty_last*100:+.2f}%"
     qc = "#28a745" if qty_curr >= qty_last else "#dc3545"
-
     with col:
-        html = f"""
-        <div style="padding:12px; border-radius:10px; background:{bg_color};">
-            <div style="font-size:14px; color:#555;">准时率</div>
-            <div style="font-size:18px; font-weight:bold;">订单：{order_curr:.1f}%</div>
-            <div style="font-size:12px; color:{oc};">环比 {op}（上月：{order_last:.1f}%）</div>
-            <div style="margin-top:4px;"></div>
-            <div style="font-size:18px; font-weight:bold;">采购量：{qty_curr:.1f}%</div>
-            <div style="font-size:12px; color:{qc};">环比 {qp}（上月：{qty_last:.1f}%）</div>
+        st.markdown(f"""
+        <div style="padding:16px; border-radius:12px; background:{bg_color}; border:1px solid #e5e7eb;">
+          <div style="font-size:15px; color:#555; margin-bottom:8px;">准时率</div>
+          <div style="font-size:18px; font-weight:600;">订单：{order_curr:.1f}%</div>
+          <div style="font-size:12px; color:{oc}; margin-bottom:6px;">环比 {op}（上月：{order_last:.1f}%）</div>
+          <div style="font-size:18px; font-weight:600;">采购量：{qty_curr:.1f}%</div>
+          <div style="font-size:12px; color:{qc};">环比 {qp}（上月：{qty_last:.1f}%）</div>
         </div>
-        """
-        st.markdown(html, unsafe_allow_html=True)
-
+        """, unsafe_allow_html=True)
 
 # -------------------------- 单指标卡片 --------------------------
 def card(col, title, current, last, suffix="", is_good_up=True, bg_color="#fafbfc", is_int=False):
-    pct = "新数据" if last == 0 else f"{((current - last) / last * 100):+.2f}%"
-    color = "#28a745" if (current >= last and is_good_up) or (current < last and not is_good_up) else "#dc3545"
-
+    pct = "新数据" if last == 0 else f"{(current - last) / last * 100:+.2f}%"
+    if is_good_up:
+        color = "#28a745" if current >= last else "#dc3545"
+    else:
+        color = "#dc3545" if current >= last else "#28a745"
     current_str = f"{int(current)}" if is_int else f"{current:.2f}"
     last_str = f"{int(last)}" if is_int else f"{last:.2f}"
-
     with col:
-        html = f"""
-        <div style="padding:12px; border-radius:10px; background:{bg_color};">
-            <div style="font-size:14px; color:#555;">{title}</div>
-            <div style="font-size:28px; font-weight:bold;">{current_str}{suffix}</div>
-            <div style="font-size:13px; color:{color};">环比 {pct}（上月：{last_str}{suffix}）</div>
+        st.markdown(f"""
+        <div style="padding:16px; border-radius:12px; background:{bg_color}; border:1px solid #e5e7eb;">
+          <div style="font-size:15px; color:#555; margin-bottom:8px;">{title}</div>
+          <div style="font-size:30px; font-weight:600;">{current_str}{suffix}</div>
+          <div style="font-size:13px; color:{color}; margin-top:6px;">环比 {pct}（上月：{last_str}{suffix}）
+          </div>
         </div>
-        """
-        st.markdown(html, unsafe_allow_html=True)
+        """, unsafe_allow_html=True)
+
+# -------------------------- 通用：获取近三个月迷你折线图 --------------------------
+def get_3month_trend(df_all, calc_func, filter_status=None):
+    """
+    df_all：全量数据
+    calc_func：聚合方式 count/sum/mean
+    filter_status：交期状态筛选（达标/逾期，无则不筛选）
+    return：迷你折线图
+    """
+    df_trend = df_all.copy()
+    if filter_status:
+        df_trend = df_trend[df_trend["交期状态"] == filter_status]
+    # 转换年月为period方便排序
+    df_trend["month_p"] = pd.to_datetime(df_trend["到货年月"]).dt.to_period("M")
+    # 按月聚合
+    agg_df = df_trend.groupby("month_p").agg(val=("采购单号", calc_func)).reset_index()
+    agg_df["month_str"] = agg_df["month_p"].astype(str)
+    # 只取最新3个月
+    agg_df = agg_df.tail(3)
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(
+        x=agg_df["month_str"],
+        y=agg_df["val"],
+        mode="lines+markers",
+        line=dict(width=2, color="#428bca"),
+        marker=dict(size=4),
+        showlegend=False
+    ))
+    # 极简图表，隐藏坐标轴
+    fig.update_layout(
+        height=70,
+        margin=dict(l=0, r=0, t=0, b=0),
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        xaxis=dict(visible=False),
+        yaxis=dict(visible=False)
+    )
+    return fig
+
+# 单独生成准时率近三月趋势
+def get_rate_3month_trend(df_all):
+    df_trend = df_all.copy()
+    df_trend["month_p"] = pd.to_datetime(df_trend["到货年月"]).dt.to_period("M")
+    rate_list = []
+    month_list = []
+    for m, group in df_trend.groupby("month_p"):
+        total = len(group)
+        on = len(group[group["交期状态"] == "达标"])
+        rate = round(on / total * 100, 1) if total > 0 else 0
+        month_list.append(str(m))
+        rate_list.append(rate)
+    df_agg = pd.DataFrame({"month": month_list, "rate": rate_list}).tail(3)
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(
+        x=df_agg["month"],
+        y=df_agg["rate"],
+        mode="lines+markers",
+        line=dict(width=2, color="#ff7f0e"),
+        marker=dict(size=4),
+        showlegend=False
+    ))
+    fig.update_layout(
+        height=70,
+        margin=dict(l=0, r=0, t=0, b=0),
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        xaxis=dict(visible=False),
+        yaxis=dict(visible=False)
+    )
+    return fig
+
+# 平均交期差值近三月趋势
+def get_diff_3month_trend(df_all):
+    df_trend = df_all.copy()
+    df_trend["month_p"] = pd.to_datetime(df_trend["到货年月"]).dt.to_period("M")
+    agg_df = df_trend.groupby("month_p").agg(val=("预计-实际交期的差值", "mean")).reset_index()
+    agg_df["month_str"] = agg_df["month_p"].astype(str)
+    agg_df = agg_df.tail(3)
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(
+        x=agg_df["month_str"],
+        y=agg_df["val"],
+        mode="lines+markers",
+        line=dict(width=2, color="#9b59b6"),
+        marker=dict(size=4),
+        showlegend=False
+    ))
+    fig.update_layout(
+        height=70,
+        margin=dict(l=0, r=0, t=0, b=0),
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        xaxis=dict(visible=False),
+        yaxis=dict(visible=False)
+    )
+    return fig
+
+st.subheader(f"📆 {selected_month} 整体分析")
+col1, col2, col3, col4, col5 = st.columns([1, 1, 1, 1, 1])
+
+# ========== 第一列：PO单数 ==========
+with col1:
+    double_card(col1, "PO单数",
+                current_total, last_total,
+                current_qty, last_qty,
+                "", is_good_up=False, bg_color="#fafbfc", is_int=True)
+    st.caption("近三月订单趋势")
+    fig_po = get_3month_trend(df, "count")
+    st.plotly_chart(fig_po, use_container_width=True)
+
+# ========== 第二列：达标 ==========
+with col2:
+    double_card(col2, "达标",
+                current_on_time, last_on_time,
+                current_on_time_qty, last_on_time_qty,
+                "", is_good_up=True, bg_color="#f0fdf4", is_int=True)
+    st.caption("近三月达标单趋势")
+    fig_ok = get_3month_trend(df, "count", filter_status="达标")
+    st.plotly_chart(fig_ok, use_container_width=True)
+
+# ========== 第三列：逾期 ==========
+with col3:
+    double_card(col3, "逾期",
+                current_overdue, last_overdue,
+                current_overdue_qty, last_overdue_qty,
+                "", is_good_up=False, bg_color="#fef2f2", is_int=True)
+    st.caption("近三月逾期单趋势")
+    fig_over = get_3month_trend(df, "count", filter_status="逾期")
+    st.plotly_chart(fig_over, use_container_width=True)
+
+# ========== 第四列：准时率 ==========
+with col4:
+    rate_card(col4, current_on_time_rate, last_on_time_rate, current_qty_on_time_rate, last_qty_on_time_rate)
+    st.caption("近三月订单准时率趋势")
+    fig_rate = get_rate_3month_trend(df)
+    st.plotly_chart(fig_rate, use_container_width=True)
+
+# ========== 第五列：平均交期差值 ==========
+with col5:
+    card(col5, "平均交期差值", current_diff_avg, last_diff_avg, "天", is_good_up=False)
+    st.caption("近三月平均交期差趋势")
+    fig_diff = get_diff_3month_trend(df)
+    st.plotly_chart(fig_diff, use_container_width=True)
+
+st.markdown("---")
+
 
 # -------------------------- 月度总结 --------------------------
 st.subheader("📝 月度对比总结")
