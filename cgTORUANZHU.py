@@ -229,258 +229,136 @@ def card(col, title, current, last, suffix="", is_good_up=True, bg_color="#fafbf
         """, unsafe_allow_html=True)
 
 
-import plotly.graph_objects as go
-import pandas as pd
-
-# ===================== 工具函数：精简版子弹图 =====================
-def create_bullet_chart(title, curr_val, base_val, threshold_warn, suffix="", better_smaller=False):
-    """
-    更紧凑的子弹图，适合Streamlit看板
-    """
-    # 颜色逻辑
-    if better_smaller:
-        bar_color = "#28a745" if curr_val <= base_val else "#dc3545"
+# -------------------------- 双指标卡片（半圆胶囊圆角版） --------------------------
+def double_card(col, title,
+                current_cnt, last_cnt,
+                current_qty, last_qty,
+                suffix="", is_good_up=True, bg_color="#fafbfc", is_int=True):
+    # 订单数环比
+    if last_cnt == 0:
+        pct_cnt = "新数据"
     else:
-        bar_color = "#28a745" if curr_val >= base_val else "#dc3545"
+        pct_cnt = (current_cnt - last_cnt) / last_cnt * 100
+        pct_cnt = f"{pct_cnt:+.2f}%"
 
-    # 防止阈值比当前值还小/异常，做个上限
-    max_range = max(curr_val, base_val, threshold_warn)
-    if max_range == 0:
-        max_range = curr_val * 1.2 if curr_val != 0 else 1
+    # 采购量环比
+    if last_qty == 0:
+        pct_qty = "新数据"
+    else:
+        pct_qty = (current_qty - last_qty) / last_qty * 100
+        pct_qty = f"{pct_qty:+.2f}%"
 
-    fig = go.Figure()
+    # 颜色判断
+    if is_good_up:
+        color_cnt = "#28a745" if current_cnt >= last_cnt else "#dc3545"
+        color_qty = "#28a745" if current_qty >= last_qty else "#dc3545"
+    else:
+        color_cnt = "#dc3545" if current_cnt >= last_cnt else "#28a745"
+        color_qty = "#dc3545" if current_qty >= last_qty else "#28a745"
 
-    # 红色预警背景
-    fig.add_trace(go.Bar(
-        x=[threshold_warn],
-        y=[0],
-        orientation="h",
-        width=0.6,
-        marker_color="#ffcccc",
-        showlegend=False,
-        hoverinfo="skip"
-    ))
+    current_cnt_str = f"{int(current_cnt)}" if is_int else f"{current_cnt:.2f}"
+    last_cnt_str = f"{int(last_cnt)}" if is_int else f"{last_cnt:.2f}"
+    current_qty_str = f"{int(current_qty)}"
+    last_qty_str = f"{int(last_qty)}"
 
-    # 上月基准灰条
-    fig.add_trace(go.Bar(
-        x=[base_val],
-        y=[0],
-        orientation="h",
-        width=0.6,
-        marker_color="#bbbbbb",
-        showlegend=False,
-        hoverinfo="skip"
-    ))
+    with col:
+        st.markdown(f"""
+        <div style="padding:18px; border-radius:999px 14px 14px 999px; background:{bg_color}; border:1px solid #e5e7eb; box-shadow:0 1px 6px rgba(0,0,0,0.04);">
+          <div style="font-size:15px; color:#555; margin-bottom:8px;">{title}</div>
+          <div style="font-size:22px; font-weight:600;">{current_cnt_str} 单</div>
+          <div style="font-size:12px; color:{color_cnt}; margin-top:2px;">
+            环比 {pct_cnt}（上月：{last_cnt_str}）
+          </div>
+          <div style="height:10px;"></div>
+          <div style="font-size:18px; font-weight:600; color:#333;">{current_qty_str} 件</div>
+          <div style="font-size:12px; color:{color_qty}; margin-top:2px;">
+            环比 {pct_qty}（上月：{last_qty_str}）
+          </div>
+        </div>
+        """, unsafe_allow_html=True)
 
-    # 本月实际值
-    fig.add_trace(go.Bar(
-        x=[curr_val],
-        y=[0],
-        orientation="h",
-        width=0.35,
-        marker_color=bar_color,
-        showlegend=False,
-        hoverinfo="skip"
-    ))
 
-    # 本月数值标注
-    fig.add_annotation(
-        x=curr_val,
-        y=0,
-        text=f"<b>{curr_val}{suffix}</b>",
-        showarrow=False,
-        font=dict(size=13, color="#111"),
-        xshift=8,
-        yshift=0
-    )
+# -------------------------- 准时率双口径卡片（半圆胶囊圆角版） --------------------------
+def rate_card(col, order_curr, order_last, qty_curr, qty_last, bg_color="#eff6ff"):
+    # 订单准时率环比
+    if order_last == 0:
+        op = "新数据"
+    else:
+        op = f"{(order_curr - order_last)/order_last*100:+.2f}%"
+    oc = "#28a745" if order_curr >= order_last else "#dc3545"
 
-    # 上月基准标注
-    fig.add_annotation(
-        x=base_val,
-        y=-0.18,
-        text=f"上月 {base_val}{suffix}",
-        showarrow=False,
-        font=dict(size=10, color="#777"),
-        xshift=0
-    )
+    # 采购量准时率环比
+    if qty_last == 0:
+        qp = "新数据"
+    else:
+        qp = f"{(qty_curr - qty_last)/qty_last*100:+.2f}%"
+    qc = "#28a745" if qty_curr >= qty_last else "#dc3545"
 
-    fig.update_layout(
-        title=dict(
-            text=title,
-            font=dict(size=13, color="#222"),
-            x=0,
-            xanchor="left"
-        ),
-        height=110,
-        margin=dict(l=0, r=40, t=24, b=0),
-        yaxis=dict(visible=False),
-        xaxis=dict(
-            title="",
-            range=[0, max_range * 1.15],
-            showgrid=False,
-            tickfont=dict(size=10)
-        ),
-        paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor="rgba(0,0,0,0)",
-        hovermode=False
-    )
+    with col:
+        st.markdown(f"""
+        <div style="padding:18px; border-radius:999px 14px 14px 999px; background:{bg_color}; border:1px solid #e5e7eb; box-shadow:0 1px 6px rgba(0,0,0,0.04);">
+          <div style="font-size:15px; color:#555; margin-bottom:8px;">准时率</div>
+          <div style="font-size:18px; font-weight:600;">订单：{order_curr:.1f}%</div>
+          <div style="font-size:12px; color:{oc}; margin-bottom:6px;">环比 {op}（上月：{order_last:.1f}%）</div>
+          <div style="font-size:18px; font-weight:600;">采购量：{qty_curr:.1f}%</div>
+          <div style="font-size:12px; color:{qc};">环比 {qp}（上月：{qty_last:.1f}%）
+          </div>
+        </div>
+        """, unsafe_allow_html=True)
 
-    return fig
 
-# ===================== 工具函数：极简迷你折线 =====================
-def create_mini_trend_line(df_all, metric_name, agg_func, suffix=""):
-    """
-    更干净的迷你折线，不显示多余坐标和网格
-    """
-    if df_all.empty:
-        return go.Figure()
+# -------------------------- 普通单指标卡片（半圆胶囊圆角版） --------------------------
+def card(col, title, current, last, suffix="", is_good_up=True, bg_color="#fafbfc", is_int=False):
+    if last == 0:
+        pct = "新数据"
+    else:
+        pct = (current - last) / last * 100
+        pct = f"{pct:+.2f}%"
 
-    trend_df = df_all.groupby("到货年月").agg(
-        val=(metric_name, agg_func)
-    ).reset_index()
+    if is_good_up:
+        color = "#28a745" if current >= last else "#dc3545"
+    else:
+        color = "#dc3545" if current >= last else "#28a745"
 
-    trend_df = trend_df.sort_values("到货年月")
+    current_str = f"{int(current)}" if is_int else f"{current:.2f}"
+    last_str = f"{int(last)}" if is_int else f"{last:.2f}"
 
-    fig = go.Figure()
+    with col:
+        st.markdown(f"""
+        <div style="padding:18px; border-radius:999px 14px 14px 999px; background:{bg_color}; border:1px solid #e5e7eb; box-shadow:0 1px 6px rgba(0,0,0,0.04);">
+          <div style="font-size:15px; color:#555; margin-bottom:8px;">{title}</div>
+          <div style="font-size:30px; font-weight:600;">{current_str}{suffix}</div>
+          <div style="font-size:13px; color:{color}; margin-top:6px;">
+            环比 {pct}（上月：{last_str}{suffix}）
+          </div>
+        </div>
+        """, unsafe_allow_html=True)
 
-    fig.add_trace(go.Scatter(
-        x=trend_df["到货年月"],
-        y=trend_df["val"],
-        mode="lines+markers",
-        line=dict(color="#3498db", width=2.2),
-        marker=dict(size=3.5),
-        showlegend=False,
-        hoverinfo="skip"
-    ))
 
-    fig.update_layout(
-        height=72,
-        margin=dict(l=0, r=0, t=0, b=0),
-        xaxis=dict(
-            visible=False,
-            showgrid=False
-        ),
-        yaxis=dict(
-            visible=False,
-            showgrid=False
-        ),
-        paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor="rgba(0,0,0,0)",
-        hovermode=False
-    )
-
-    return fig
-
-# ===================== 绘制区域：5列子弹图 + 迷你折线 =====================
-
+# -------------------------- 绘制卡片（调用代码无需改动，直接保留） --------------------------
 st.subheader(f"📆 {selected_month} 整体分析")
-
 col1, col2, col3, col4, col5 = st.columns(5)
 
-# ---------- 1 PO总订单数 ----------
-with col1:
-    fig_po = create_bullet_chart(
-        title="PO总订单数",
-        curr_val=current_total,
-        base_val=last_total,
-        threshold_warn=int(last_total * 1.2) if last_total != 0 else current_total * 1.2,
-        suffix="单",
-        better_smaller=False
-    )
-    st.plotly_chart(fig_po, use_container_width=True)
+double_card(col1, "PO单数",
+            current_total, last_total,
+            current_qty, last_qty,
+            "", is_good_up=False, bg_color="#fafbfc", is_int=True)
 
-    st.caption("历史订单趋势")
-    fig_trend_po = create_mini_trend_line(df, "采购单号", "count", suffix="单")
-    st.plotly_chart(fig_trend_po, use_container_width=True)
+double_card(col2, "达标",
+            current_on_time, last_on_time,
+            current_on_time_qty, last_on_time_qty,
+            "", is_good_up=True, bg_color="#f0fdf4", is_int=True)
 
-# ---------- 2 达标订单 ----------
-with col2:
-    fig_ok = create_bullet_chart(
-        title="达标订单数",
-        curr_val=current_on_time,
-        base_val=last_on_time,
-        threshold_warn=int(last_on_time * 0.8) if last_on_time != 0 else current_on_time * 0.8,
-        suffix="单",
-        better_smaller=False
-    )
-    st.plotly_chart(fig_ok, use_container_width=True)
+double_card(col3, "逾期",
+            current_overdue, last_overdue,
+            current_overdue_qty, last_overdue_qty,
+            "", is_good_up=False, bg_color="#fef2f2", is_int=True)
 
-    st.caption("达标单趋势")
-    fig_trend_ok = create_mini_trend_line(
-        df[df["交期状态"] == "达标"], "采购单号", "count", suffix="单"
-    )
-    st.plotly_chart(fig_trend_ok, use_container_width=True)
+# 准时率卡片
+rate_card(col4, current_on_time_rate, last_on_time_rate, current_qty_on_time_rate, last_qty_on_time_rate)
 
-# ---------- 3 逾期订单 ----------
-with col3:
-    fig_over = create_bullet_chart(
-        title="逾期订单数",
-        curr_val=current_overdue,
-        base_val=last_overdue,
-        threshold_warn=int(last_overdue * 1.1) if last_overdue != 0 else current_overdue * 1.1,
-        suffix="单",
-        better_smaller=True
-    )
-    st.plotly_chart(fig_over, use_container_width=True)
-
-    st.caption("逾期单趋势")
-    fig_trend_over = create_mini_trend_line(
-        df[df["交期状态"] == "逾期"], "采购单号", "count", suffix="单"
-    )
-    st.plotly_chart(fig_trend_over, use_container_width=True)
-
-# ---------- 4 订单准时率 ----------
-with col4:
-    fig_rate = create_bullet_chart(
-        title="订单准时率",
-        curr_val=round(current_on_time_rate, 1),
-        base_val=round(last_on_time_rate, 1),
-        threshold_warn=80,
-        suffix="%",
-        better_smaller=False
-    )
-    st.plotly_chart(fig_rate, use_container_width=True)
-
-    st.caption("准时率趋势")
-    rate_trend = df.groupby("到货年月").apply(
-        lambda x: round((x["交期状态"] == "达标").sum() / len(x) * 100, 1) if len(x) > 0 else 0
-    ).reset_index(name="val")
-
-    fig_trend_rate = go.Figure(go.Scatter(
-        x=rate_trend["到货年月"],
-        y=rate_trend["val"],
-        mode="lines+markers",
-        line=dict(color="#3498db", width=2.2),
-        marker=dict(size=3.5),
-        showlegend=False,
-        hoverinfo="skip"
-    ))
-    fig_trend_rate.update_layout(
-        height=72,
-        margin=dict(l=0, r=0, t=0, b=0),
-        xaxis=dict(visible=False, showgrid=False),
-        yaxis=dict(visible=False, showgrid=False),
-        paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor="rgba(0,0,0,0)",
-        hovermode=False
-    )
-    st.plotly_chart(fig_trend_rate, use_container_width=True)
-
-# ---------- 5 平均交期差值 ----------
-with col5:
-    fig_diff = create_bullet_chart(
-        title="平均交期差值",
-        curr_val=round(current_diff_avg, 2),
-        base_val=round(last_diff_avg, 2),
-        threshold_warn=3,
-        suffix="天",
-        better_smaller=True
-    )
-    st.plotly_chart(fig_diff, use_container_width=True)
-
-    st.caption("交期差趋势")
-    fig_trend_diff = create_mini_trend_line(df, "预计-实际交期的差值", "mean", suffix="天")
-    st.plotly_chart(fig_trend_diff, use_container_width=True)
+# 平均交期差值
+card(col5, "平均交期差值", current_diff_avg, last_diff_avg, "天", is_good_up=False)
 
 st.markdown("---")
 
