@@ -939,7 +939,7 @@ for idx, row in factory_analysis.iterrows():
 st.markdown("---")
 
 
-st.subheader("🏷️ 厂家 - 全品类明细履约分析（按准时率自动评级上色）")
+st.subheader("🤝🤝 厂家 - 全品类明细履约分析（按准时率自动评级上色）")
 
 df_category = df_current[
     (df_current["厂家"].notna()) &
@@ -972,7 +972,7 @@ else:
     )
 
     # 3. 开始生成卡片（3列布局）
-    st.markdown("#### 📌 各厂家全品类明细卡片")
+    st.markdown("####  📍📍  厂家按照类目划分的明细卡片")
 
     # ========== 1. 统计加急单 ==========
     # ========== 1. 统计加急单（改用筛选后的数据df_current） ==========
@@ -1072,7 +1072,7 @@ else:
 
 
 
-st.subheader("🎯 厂家+类目明细 采购交期分位数分析 & 修改建议")
+st.subheader("⏳⏳ 采购交期修改建议（与准时率90%的数据进行对比")
 st.markdown("### ⏱ 订单时间筛选设置")
 
 # 只保留单列多选布局
