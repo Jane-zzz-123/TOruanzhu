@@ -435,7 +435,7 @@ else:
 st.markdown("---")
 
 # -------------------------- 饼图 & 交期分布 --------------------------
-st.subheader("📊 准时率与时效偏差分布")
+st.subheader("📊 准时率与交期偏差分布")
 c1, c2 = st.columns(2)
 
 with c1:
@@ -459,7 +459,7 @@ with c1:
         st.plotly_chart(fig, use_container_width=True)
 
 with c2:
-    st.markdown("#### 交期差值区间分布")
+    st.markdown("#### 达标订单与逾期订单的区间分布")
     if current_total > 0:
         df_diff = df_current.copy()
         df_diff["差值(天)"] = df_diff["预计-实际交期的差值"].round(0).astype(int)
@@ -467,15 +467,32 @@ with c2:
         on_time_diff = diff_counts[diff_counts.index >= 0]
         overdue_diff = diff_counts[diff_counts.index < 0]
 
-        st.markdown("✅ **达标**")
-        for day, cnt in on_time_diff.items():
-            bar = "🟩" * min(cnt, 20)
-            st.markdown(f"- +{day}天: {bar} ({cnt}单)")
+        # 新增：顶部汇总，一眼看清总量
+        col_a, col_b = st.columns(2)
+        with col_a:
+            st.markdown(f"✅ 达标区间 | 合计 {on_time_diff.sum()} 单")
+        with col_b:
+            st.markdown(f"❌ 延迟区间 | 合计 {overdue_diff.sum()} 单")
+        st.divider()
 
-        st.markdown("❌ **延迟**")
-        for day, cnt in overdue_diff.items():
-            bar = "🟥" * min(cnt, 20)
-            st.markdown(f"- {day}天: {bar} ({cnt}单)")
+        # 达标、延迟左右分栏，纵向高度直接砍半
+        col_ok, col_late = st.columns(2)
+        max_cnt = diff_counts.max()  # 全局最大订单数，用于等比例缩放色块
+
+        with col_ok:
+            st.markdown("**提前/准时(≥0天)**")
+            for day, cnt in on_time_diff.items():
+                # 按比例控制色块长度，最多15格，不会超长
+                bar_len = int((cnt / max_cnt) * 15) if max_cnt > 0 else 0
+                bar = "🟩" * bar_len
+                st.markdown(f"- +{day}天 {bar} ({cnt}单)")
+
+        with col_late:
+            st.markdown("**延迟(<0天)**")
+            for day, cnt in overdue_diff.items():
+                bar_len = int((cnt / max_cnt) * 15) if max_cnt > 0 else 0
+                bar = "🟥" * bar_len
+                st.markdown(f"- {day}天 {bar} ({cnt}单)")
 
 st.markdown("---")
 
