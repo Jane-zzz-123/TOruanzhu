@@ -794,22 +794,8 @@ selected_rating = st.selectbox("筛选厂家履约评级", rating_options)
 
 # ---------------------- 新增：预计算全量厂家近3个月准时率历史 ----------------------
 # ---------------------- 新增：预计算全量厂家近3个月准时率历史 ----------------------
-def get_factory_3m_rate_data(factory_name, all_df):
-    """获取单个厂家近3个月准时率，返回绘图所需df"""
-    df_hist = all_df[all_df["厂家"] == factory_name].copy()
-    df_hist["month_p"] = pd.to_datetime(df_hist["到货年月"]).dt.to_period("M")
-    month_rate_list = []
-    for m, group in df_hist.groupby("month_p"):
-        total_cnt = len(group)
-        # 修复：字段改为交期状态
-        ok_cnt = (group["交期状态"] == "达标").sum()
-        rate = round(ok_cnt / total_cnt * 100, 1) if total_cnt > 0 else 0.0
-        month_rate_list.append({"month_str": str(m), "rate": rate})
-    hist_df = pd.DataFrame(month_rate_list).tail(3)
-    return hist_df
-
-def draw_factory_rate_minichart(hist_df):
-    """绘制迷你3个月准时率趋势图，折点标注年月+准时率"""
+def draw_factory_rate_minichart(hist_df, unique_key):
+    """绘制迷你3个月准时率趋势图，折点标注年月+准时率，增加唯一key防重复报错"""
     if len(hist_df) < 1:
         st.caption("📉 无历史履约数据")
         return
@@ -843,7 +829,8 @@ def draw_factory_rate_minichart(hist_df):
         xaxis=dict(visible=False),
         yaxis=dict(visible=False, range=[0, 105])
     )
-    st.plotly_chart(fig, use_container_width=True)
+    # 传入唯一key，解决重复ID报错
+    st.plotly_chart(fig, use_container_width=True, key=unique_key)
 # --------------------------------------------------------------------------------
 # --------------------------------------------------------------------------------
 
@@ -896,6 +883,7 @@ if selected_rating != "全部":
 factory_analysis = factory_analysis.sort_values("订单总数", ascending=False).reset_index(drop=True)
 
 # 一行四列卡片展示
+# 一行四列卡片展示
 cols = st.columns(4)
 for idx, row in factory_analysis.iterrows():
     factory_name = row["厂家"]
@@ -931,9 +919,10 @@ for idx, row in factory_analysis.iterrows():
             <hr style="margin:12px 0; border-top:1px solid #ddd;">
             <div style="font-size:13px; font-weight:500; color:#555;">📈 近三月准时率趋势</div>
         """, unsafe_allow_html=True)
-        # ------------------ 新增：卡片底部渲染迷你趋势图 ------------------
+        # ------------------ 新增：卡片底部渲染迷你趋势图（传入唯一key） ------------------
         hist_data = get_factory_3m_rate_data(factory_name, df)
-        draw_factory_rate_minichart(hist_data)
+        unique_key = f"mini_rate_{factory_name}_{idx}"
+        draw_factory_rate_minichart(hist_data, unique_key)
         st.markdown("</div>", unsafe_allow_html=True)
 
 st.markdown("---")
