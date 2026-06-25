@@ -465,7 +465,8 @@ with c2:
         df_diff["差值(天)"] = df_diff["预计-实际交期的差值"].round(0).astype(int)
         diff_counts = df_diff["差值(天)"].value_counts().sort_index(ascending=False)
         on_time_diff = diff_counts[diff_counts.index >= 0]
-        overdue_diff = diff_counts[diff_counts.index < 0]
+        # 逾期单独重新升序排序：数值越小（-26、-25…-1）越靠前
+        overdue_diff = diff_counts[diff_counts.index < 0].sort_index(ascending=True)
 
         # 新增：顶部汇总，一眼看清总量
         col_a, col_b = st.columns(2)
