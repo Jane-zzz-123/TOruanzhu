@@ -31,21 +31,24 @@ if not st.session_state.login_success:
 # ===================== 登录成功后，加载水印 =====================
 watermark_css = """
 <style>
+.stApp {
+    position: relative;
+}
 .stApp::before {
-    content: "janezzz  XF-吴专属展现看板 --禁止盗用";
+    content: "janezzz XF-吴专属展现看板 禁止外传";
     position: fixed;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
+    inset: 0;
     z-index: 9999;
     pointer-events: none;
     font-size: 24px;
-    color: rgba(120,120,120,0.09);
-    transform: rotate(-28deg);
-    line-height: 4.5;
-    white-space: pre-wrap;
-    text-align: center;
+    color: rgba(70,70,70,0.18);
+    transform: rotate(-30deg);
+    /* 核心：重复平铺铺满整个页面 */
+    background-repeat: repeat;
+    line-height: 4;
+    white-space: pre;
+    width: 100%;
+    height: 100%;
 }
 </style>
 """
