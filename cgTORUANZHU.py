@@ -9,6 +9,27 @@ import plotly.graph_objects as go
 import numpy as np
 # -------------------------- 页面设置 --------------------------
 st.set_page_config(page_title="月度采购交期监控看板", page_icon="📊", layout="wide")
+
+# ====================== 登录模块（放在set_page_config下面） ======================
+if "login_success" not in st.session_state:
+    st.session_state.login_success = False
+
+# 自定义访问密码
+VIEW_PASSWORD = "janezzz123"
+
+if not st.session_state.login_success:
+    st.title("🔐 系统登录验证")
+    st.divider()
+    pwd = st.text_input("请输入看板访问密码", type="password")
+    if st.button("登录查看看板", type="primary"):
+        if pwd == VIEW_PASSWORD:
+            st.session_state.login_success = True
+            st.rerun()
+        else:
+            st.error("密码错误，请重新输入")
+    # 未登录直接终止下面所有看板代码
+    st.stop()
+
 st.title("📦 月度采购交期监控可视化看板（数据均虚拟，仅看板成果展示）")
 st.markdown("---")
 
@@ -1352,7 +1373,7 @@ for _, row in quantile_stats.iterrows():
     card_idx += 1
 
 # 明细表格
-st.markdown("#### 📊 交期分位数分析明细表格")
+st.markdown("#### 📊 采购交期的不同分位数对应交期以及建议优化明细表格")
 st.dataframe(quantile_stats, use_container_width=True, hide_index=True)
 
 
