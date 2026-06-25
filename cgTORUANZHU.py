@@ -480,7 +480,7 @@ with c2:
         max_cnt = diff_counts.max()  # 全局最大订单数，用于等比例缩放色块
 
         with col_ok:
-            st.markdown("**提前/准时(≥0天)**")
+            st.markdown("**达标(≥0天)**")
             for day, cnt in on_time_diff.items():
                 # 按比例控制色块长度，最多15格，不会超长
                 bar_len = int((cnt / max_cnt) * 15) if max_cnt > 0 else 0
@@ -488,7 +488,7 @@ with c2:
                 st.markdown(f"- +{day}天 {bar} ({cnt}单)")
 
         with col_late:
-            st.markdown("**延迟(<0天)**")
+            st.markdown("**逾期(<0天)**")
             for day, cnt in overdue_diff.items():
                 bar_len = int((cnt / max_cnt) * 15) if max_cnt > 0 else 0
                 bar = "🟥" * bar_len
