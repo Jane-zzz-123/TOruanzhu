@@ -472,7 +472,7 @@ with c2:
         with col_a:
             st.markdown(f"✅ 达标区间 | 合计 {on_time_diff.sum()} 单")
         with col_b:
-            st.markdown(f"❌ 延迟区间 | 合计 {overdue_diff.sum()} 单")
+            st.markdown(f"❌ 逾期区间 | 合计 {overdue_diff.sum()} 单")
         st.divider()
 
         # 达标、延迟左右分栏，纵向高度直接砍半
