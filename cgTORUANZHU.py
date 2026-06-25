@@ -10,12 +10,11 @@ import numpy as np
 # -------------------------- 页面设置 --------------------------
 st.set_page_config(page_title="月度采购交期监控看板", page_icon="📊", layout="wide")
 
-# ====================== 登录模块（放在set_page_config下面） ======================
+# 登录逻辑
 if "login_success" not in st.session_state:
     st.session_state.login_success = False
 
-# 自定义访问密码
-VIEW_PASSWORD = "janezzz123"
+VIEW_PASSWORD = "janezzz111"
 
 if not st.session_state.login_success:
     st.title("🔐 系统登录验证")
@@ -27,8 +26,38 @@ if not st.session_state.login_success:
             st.rerun()
         else:
             st.error("密码错误，请重新输入")
-    # 未登录直接终止下面所有看板代码
     st.stop()
+
+# ===================== 登录成功后，加载水印 =====================
+watermark_css = """
+<style>
+.stApp::before {
+    content: "janezzz  XF-吴专属展现看板 --禁止盗用";
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 9999;
+    pointer-events: none;
+    font-size: 24px;
+    color: rgba(120,120,120,0.09);
+    transform: rotate(-28deg);
+    line-height: 4.5;
+    white-space: pre-wrap;
+    text-align: center;
+}
+</style>
+"""
+st.markdown(watermark_css, unsafe_allow_html=True)
+
+# 侧边栏退出按钮
+with st.sidebar:
+    st.success("✅ 已登录")
+    if st.button("退出登录"):
+        st.session_state.login_success = False
+        st.rerun()
+
 
 st.title("📦 月度采购交期监控可视化看板（数据均虚拟，仅看板成果展示）")
 st.markdown("---")
