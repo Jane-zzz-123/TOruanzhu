@@ -793,6 +793,7 @@ rating_options = ["全部", "优质", "合格", "异常"]
 selected_rating = st.selectbox("筛选厂家履约评级", rating_options)
 
 # ---------------------- 新增：预计算全量厂家近3个月准时率历史 ----------------------
+# ---------------------- 新增：预计算全量厂家近3个月准时率历史 ----------------------
 def get_factory_3m_rate_data(factory_name, all_df):
     """获取单个厂家近3个月准时率，返回绘图所需df"""
     df_hist = all_df[all_df["厂家"] == factory_name].copy()
@@ -800,14 +801,15 @@ def get_factory_3m_rate_data(factory_name, all_df):
     month_rate_list = []
     for m, group in df_hist.groupby("month_p"):
         total_cnt = len(group)
-        ok_cnt = (group["交期"] == "达标").sum()
+        # 修复：字段改为交期状态
+        ok_cnt = (group["交期状态"] == "达标").sum()
         rate = round(ok_cnt / total_cnt * 100, 1) if total_cnt > 0 else 0.0
         month_rate_list.append({"month_str": str(m), "rate": rate})
     hist_df = pd.DataFrame(month_rate_list).tail(3)
     return hist_df
 
 def draw_factory_rate_minichart(hist_df):
-    """绘制迷你3个月准时趋势图，折点标注年月+准时率"""
+    """绘制迷你3个月准时率趋势图，折点标注年月+准时率"""
     if len(hist_df) < 1:
         st.caption("📉 无历史履约数据")
         return
@@ -842,6 +844,7 @@ def draw_factory_rate_minichart(hist_df):
         yaxis=dict(visible=False, range=[0, 105])
     )
     st.plotly_chart(fig, use_container_width=True)
+# --------------------------------------------------------------------------------
 # --------------------------------------------------------------------------------
 
 # 过滤空值（这段冗余df_valid可以保留或删除，不影响）
