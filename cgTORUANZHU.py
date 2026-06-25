@@ -792,13 +792,65 @@ st.subheader("⚠️ 厂家履约评级分析（按准时率）")
 rating_options = ["全部", "优质", "合格", "异常"]
 selected_rating = st.selectbox("筛选厂家履约评级", rating_options)
 
-# 过滤空值 + 仅保留有效数据行
+# ---------------------- 新增：预计算全量厂家近3个月准时率历史 ----------------------
+def get_factory_3m_rate_data(factory_name, all_df):
+    """获取单个厂家近3个月准时率，返回绘图所需df"""
+    df_hist = all_df[all_df["厂家"] == factory_name].copy()
+    df_hist["month_p"] = pd.to_datetime(df_hist["到货年月"]).dt.to_period("M")
+    month_rate_list = []
+    for m, group in df_hist.groupby("month_p"):
+        total_cnt = len(group)
+        ok_cnt = (group["交期"] == "达标").sum()
+        rate = round(ok_cnt / total_cnt * 100, 1) if total_cnt > 0 else 0.0
+        month_rate_list.append({"month_str": str(m), "rate": rate})
+    hist_df = pd.DataFrame(month_rate_list).tail(3)
+    return hist_df
+
+def draw_factory_rate_minichart(hist_df):
+    """绘制迷你3个月准时趋势图，折点标注年月+准时率"""
+    if len(hist_df) < 1:
+        st.caption("📉 无历史履约数据")
+        return
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(
+        x=hist_df["month_str"],
+        y=hist_df["rate"],
+        mode="lines+markers",
+        line=dict(width=2.2, color="#ff7f0e"),
+        marker=dict(size=6, color="#ff7f0e"),
+        fill="tozeroy",
+        fillcolor="rgba(255, 127, 14, 0.12)",
+        showlegend=False,
+        hoverinfo="skip"
+    ))
+    # 每个点固定文字标注：分行 年月 / 准时率XX%
+    for _, row in hist_df.iterrows():
+        fig.add_annotation(
+            x=row["month_str"],
+            y=row["rate"],
+            text=f"{row['month_str']}<br>准时率:{row['rate']}%",
+            showarrow=False,
+            font=dict(size=10, color="#ff7f0e"),
+            yshift=14
+        )
+    fig.update_layout(
+        height=80,
+        margin=dict(l=0, r=0, t=30, b=0),
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        xaxis=dict(visible=False),
+        yaxis=dict(visible=False, range=[0, 105])
+    )
+    st.plotly_chart(fig, use_container_width=True)
+# --------------------------------------------------------------------------------
+
+# 过滤空值（这段冗余df_valid可以保留或删除，不影响）
 df_valid = df_current[
     df_current["厂家"].notna() &
     df_current["采购单号"].notna()
 ].copy()
 
-# 计算所有厂家指标
+# 计算所有厂家当月指标
 factory_analysis = df_current.groupby("厂家").agg(
     订单总数=("采购单号", "count"),
     准时订单数=("交期状态", lambda x: (x == "达标").sum()),
@@ -813,7 +865,7 @@ factory_analysis = df_current.groupby("厂家").agg(
 total_purchase = factory_analysis["采购量合计"].sum()
 total_arrival = factory_analysis["到货量合计"].sum()
 
-# 计算指标
+# 计算衍生指标
 factory_analysis["准时率"] = (
     (factory_analysis["准时订单数"].astype(np.float64) /
      factory_analysis["订单总数"].replace(0, np.nan).astype(np.float64) * 100)
@@ -843,6 +895,7 @@ factory_analysis = factory_analysis.sort_values("订单总数", ascending=False)
 # 一行四列卡片展示
 cols = st.columns(4)
 for idx, row in factory_analysis.iterrows():
+    factory_name = row["厂家"]
     rate = row["准时率"]
     if rate >= 90:
         level = "优质"
@@ -861,7 +914,7 @@ for idx, row in factory_analysis.iterrows():
         st.markdown(f"""
         <div style="padding:16px; border-radius:12px; background:{bg_color}; border:2px solid {border_color}; margin-bottom:15px;">
             <div style="font-size:16px; font-weight:600; margin-bottom:6px;">
-                {row['厂家']} <span style="font-size:13px;">[{level}]</span>
+                {factory_name} <span style="font-size:13px;">[{level}]</span>
             </div>
             <div style="font-size:14px; line-height:1.7;">
                 准时率：{rate}%<br/>
@@ -872,8 +925,13 @@ for idx, row in factory_analysis.iterrows():
                 平均交期：{row['平均实际交期']:.1f} 天<br/>
                 最长交期：{row['最长实际交期']:.1f} 天
             </div>
-        </div>
+            <hr style="margin:12px 0; border-top:1px solid #ddd;">
+            <div style="font-size:13px; font-weight:500; color:#555;">📈 近三月准时率趋势</div>
         """, unsafe_allow_html=True)
+        # ------------------ 新增：卡片底部渲染迷你趋势图 ------------------
+        hist_data = get_factory_3m_rate_data(factory_name, df)
+        draw_factory_rate_minichart(hist_data)
+        st.markdown("</div>", unsafe_allow_html=True)
 
 st.markdown("---")
 st.subheader("🏷️ 厂家 - 全品类明细履约分析（按准时率自动评级上色）")
