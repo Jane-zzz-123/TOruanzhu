@@ -31,24 +31,22 @@ if not st.session_state.login_success:
 # ===================== 登录成功后，加载水印 =====================
 watermark_css = """
 <style>
-.stApp {
-    position: relative;
-}
 .stApp::before {
-    content: "janezzz XF-吴专属展现看板 禁止外传";
+    /* 用 \A 换行复制多段文字，实现自动铺满 */
+    content: "janezzz XF-吴专属展现看板 禁止外传\A janezzz XF-吴专属展现看板 禁止外传\A janezzz XF-吴专属展现看板 禁止外传\A janezzz XF-吴专属展现看板 禁止外传\A janezzz XF-吴专属展现看板 禁止外传\A janezzz XF-吴专属展现看板 禁止外传\A janezzz XF-吴专属展现看板 禁止外传\A janezzz XF-吴专属展现看板 禁止外传\A janezzz XF-吴专属展现看板 禁止外传\A janezzz XF-吴专属展现看板 禁止外传";
+    white-space: pre;
     position: fixed;
-    inset: 0;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
     z-index: 9999;
     pointer-events: none;
-    font-size: 24px;
-    color: rgba(70,70,70,0.18);
-    transform: rotate(-30deg);
-    /* 核心：重复平铺铺满整个页面 */
-    background-repeat: repeat;
-    line-height: 4;
-    white-space: pre;
-    width: 100%;
-    height: 100%;
+    font-size: 22px;
+    color: rgba(60,60,60,0.18);
+    transform: rotate(-28deg);
+    line-height: 3.5; /* 控制水印行间距，数值越小越密集 */
+    text-align: center;
 }
 </style>
 """
