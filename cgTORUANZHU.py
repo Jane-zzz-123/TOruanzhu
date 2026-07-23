@@ -8,7 +8,7 @@ from plotly.subplots import make_subplots
 import plotly.graph_objects as go
 import numpy as np
 # -------------------------- 页面设置 --------------------------
-st.set_page_config(page_title="月度采购交期监控看板", page_icon="📊", layout="wide")
+st.set_page_config(page_title="个人成果展示看板", page_icon="📊", layout="wide")
 
 # 登录逻辑
 if "login_success" not in st.session_state:
