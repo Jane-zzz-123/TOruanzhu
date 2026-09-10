@@ -8,8 +8,8 @@ from plotly.subplots import make_subplots
 import plotly.graph_objects as go
 import numpy as np
 # -------------------------- 页面设置 --------------------------
-st.set_page_config(page_title="采购交期监控看板", page_icon="📊", layout="wide")
-st.title("📦 采购交期监控可视化看板")
+st.set_page_config(page_title="采购交期分析平台", page_icon="📊", layout="wide")
+st.title("📦 采购交期分析平台")
 st.markdown("---")
 
 # -------------------------- 加载数据（已修复正确链接） --------------------------
