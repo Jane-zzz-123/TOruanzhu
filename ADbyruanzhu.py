@@ -1251,9 +1251,11 @@ st.plotly_chart(fig_funnel, use_container_width=True)
 # -------------------------- ⑤80/20帕累托分析（SKU维度） --------------------------
 st.subheader("7.5 SKU帕累托80‑20分析")
 df_pareto = df_single_item[df_single_item["销售额"]>0].copy()
+# 调试信息
 sum_pareto_sales = df_pareto["销售额"].sum()
 st.write(f"df_pareto子集内销售额合计：${sum_pareto_sales:,.2f}")
 st.write(f"店铺全局总销售额curr_sales：${curr_sales:,.2f}")
+
 df_pareto = df_pareto.sort_values("销售额", ascending=False).reset_index(drop=True)
 # 计算累计占比
 df_pareto["销售额累计"] = df_pareto["销售额"].cumsum()
@@ -1286,11 +1288,28 @@ fig_pareto.update_layout(
 )
 st.plotly_chart(fig_pareto, use_container_width=True)
 
-# 统计多少SKU贡献80%销售额
-idx_80_sales = (df_pareto["销售额累计占比"]>=0.8).idxmin() if (df_pareto["销售额累计占比"]>=0.8).any() else len(df_pareto)-1
-cnt_80sales_sku = idx_80_sales + 1
-pct_80sales_sku = cnt_80sales_sku / len(df_pareto)
-st.caption(f"📊统计：{cnt_80sales_sku}个SKU贡献本店铺80%销售额，占全部有效SKU数量 {pct_80sales_sku:.2%}")
+# ==========【修复核心：找第一个>=80%的行索引，不再用idxmin】==========
+cond_sales = df_pareto["销售额累计占比"] >= 0.8
+if cond_sales.any():
+    # 取按顺序第一个满足条件的索引
+    idx_80_sales = cond_sales[cond_sales].index[0]
+    cnt_80sales_sku = idx_80_sales + 1
+    pct_80sales_sku = cnt_80sales_sku / len(df_pareto)
+    top1_ratio = df_pareto["销售额累计占比"].iloc[0]
+    st.caption(f"📊销售集中度：前{cnt_80sales_sku}个SKU合计贡献店铺80%销售额，占全部有效SKU数量 {pct_80sales_sku:.2%}；TOP1单品占总销售 {top1_ratio:.2%}")
+else:
+    st.caption("📊销售集中度：所有SKU累加仍未达到80%阈值")
+
+# 额外增加广告花费维度帕累托统计（对比看广告资源集中度）
+cond_spend = df_pareto["广告花费累计占比"] >=0.8
+if cond_spend.any():
+    idx_80_spend = cond_spend[cond_spend].index[0]
+    cnt_80_spend_sku = idx_80_spend +1
+    pct_80_spend_sku = cnt_80_spend_sku / len(df_pareto)
+    st.caption(f"📢广告花费集中度：前{cnt_80_spend_sku}个SKU吃掉80%广告预算，占全部有效SKU数量 {pct_80_spend_sku:.2%}")
+
+st.info("💡解读：曲线越早触碰80%横线，代表业绩越集中在头部SKU；对比两条线：若销售80%所需SKU数量少于广告花费80%所需SKU数量，代表头部爆款广告投产更优。")
+
 
 # -------------------------- ⑥ASoAS & TACOS 联合矩阵四象限散点图 --------------------------
 st.subheader("7.6 ASoAS & TACOS 四象限矩阵分析")
