@@ -1314,12 +1314,14 @@ with quad_col1:
     )
     st.plotly_chart(fig_quad_month, use_container_width=True)
 
-# 右：当月SKU维度四象限
+# 右：当月SKU维度四象限（修复KeyError：不要引用不存在的列ASoAS广告销售依赖度）
 with quad_col2:
-    df_quad_sku = df_single_item.dropna(subset=["单品TACOS","ASoAS广告销售依赖度"]).copy()
+    df_quad_sku = df_single_item.copy()
     # SKU维度ASoAS：单品广告销售额 /单品总销售额
     df_quad_sku["sku_ASoAS"] = np.where(df_quad_sku["销售额"]>0, df_quad_sku["广告销售额"]/df_quad_sku["销售额"], np.nan)
+    # ✅只过滤真实存在的两列：sku_ASoAS（现场生成）、单品TACOS
     df_quad_sku = df_quad_sku.dropna(subset=["sku_ASoAS","单品TACOS"])
+
     fig_quad_sku = go.Figure()
     fig_quad_sku.add_trace(go.Scatter(
         x=df_quad_sku["sku_ASoAS"],
@@ -1346,6 +1348,7 @@ st.markdown("""
 > 3️⃣右下【低ASoAS+高TACOS】：广告花钱，但广告贡献销售占比很低，广告浪费严重
 > 4️⃣左下【低ASoAS+低TACOS】健康区：自然流量强，广告成本可控
 """)
+
 
 st.divider()
 
