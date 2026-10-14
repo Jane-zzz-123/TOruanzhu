@@ -1234,19 +1234,40 @@ else:
 
 # -------------------------- ④广告流量漏斗分析 --------------------------
 st.subheader("7.4 广告流量漏斗（展示→点击→广告订单）")
+
+imp = int(df_month_single["展示"].iloc[0])
+click = int(df_month_single["点击"].iloc[0])
+order_ad = int(df_month_single["广告订单量"].iloc[0])
+
+# 计算阶段转化率
+ctr = click / imp if imp > 0 else 0
+cvr = order_ad / click if click > 0 else 0
+
 funnel_data = [
-    {"name":"广告展示曝光","value": int(df_month_single["展示"].iloc[0])},
-    {"name":"广告点击","value": int(df_month_single["点击"].iloc[0])},
-    {"name":"广告成交订单","value": int(df_month_single["广告订单量"].iloc[0])}
+    {"name":"广告展示曝光","value": imp, "note":""},
+    {"name":"广告点击","value": click, "note":f"CTR:{ctr:.2%}"},
+    {"name":"广告成交订单","value": order_ad, "note":f"CVR:{cvr:.2%}"}
 ]
+
 fig_funnel = go.Figure(go.Funnel(
     y=[i["name"] for i in funnel_data],
     x=[i["value"] for i in funnel_data],
-    textinfo = "value+percent initial",
-    marker={"color":["#4C78A8","#F58518","#59A14F"]}
+    text = [f'{d["value"]} | {d["note"]}' for d in funnel_data],
+    textinfo = "text",
+    marker={"color":["#4C78A8","#F58518","#59A14F"]},
+    hovertemplate="数量：%{x:,}<extra></extra>"
 ))
-fig_funnel.update_layout(title="广告完整转化漏斗", height=360)
+fig_funnel.update_layout(title=f"广告完整转化漏斗｜CTR={ctr:.2%}，CVR={cvr:.2%}", height=360)
 st.plotly_chart(fig_funnel, use_container_width=True)
+
+# 下方文字小结，强化业务解读
+st.info(f"""
+📌漏斗解读：
+- 曝光 → 点击 CTR：**{ctr:.2%}**（曝光里面多少产生点击）
+- 点击 → 广告订单 CVR：**{cvr:.2%}**（点击进来之后多少下单广告订单）
+👉最大流失环节：曝光到点击；点击后的转化承接表现良好。
+""")
+
 
 # -------------------------- ⑤80/20帕累托分析（SKU维度） --------------------------
 st.subheader("7.5 SKU帕累托80‑20分析")
