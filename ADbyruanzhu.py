@@ -1251,6 +1251,9 @@ st.plotly_chart(fig_funnel, use_container_width=True)
 # -------------------------- ⑤80/20帕累托分析（SKU维度） --------------------------
 st.subheader("7.5 SKU帕累托80‑20分析")
 df_pareto = df_single_item[df_single_item["销售额"]>0].copy()
+sum_pareto_sales = df_pareto["销售额"].sum()
+st.write(f"df_pareto子集内销售额合计：${sum_pareto_sales:,.2f}")
+st.write(f"店铺全局总销售额curr_sales：${curr_sales:,.2f}")
 df_pareto = df_pareto.sort_values("销售额", ascending=False).reset_index(drop=True)
 # 计算累计占比
 df_pareto["销售额累计"] = df_pareto["销售额"].cumsum()
