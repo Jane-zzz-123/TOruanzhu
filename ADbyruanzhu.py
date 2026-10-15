@@ -10,40 +10,20 @@ import numpy as np
 USER_AUTH = {
     # 超级管理员（可查看全部店铺）
     "admin": {
-        "pwd": "@admin1234",
+        "pwd": "admin11112",
         "shops": ["全部"]
     },
-    "黄怡": {
-        "pwd": "syc-huangyi123",
-        "shops": ["思业成-US","创奇-US黄怡D"]
+    "user1": {
+        "pwd": "user1111",
+        "shops": ["店铺1","店铺2"]
     },
-    "镱娜": {
-        "pwd": "dx-yyyna123",
-        "shops": ["定行-US","创奇-US镱娜H"]
+    "user2": {
+        "pwd": "user2222",
+        "shops": ["店铺3"]
     },
-    "小娇": {
-        "pwd": "pt and ys-xiaojiao",
-        "shops": ["拼途-US","艺胜-US","创奇-US小娇C"]
-    },
-    "楷纯": {
-        "pwd": "zy and cr-kaichun",
-        "shops": ["争艳-US","辰瑞-US","创奇-US楷纯E"]
-    },
-    "淑谊": {
-        "pwd": "sx and jy-shuyi",
-        "shops": ["势兴-US","进益-US","创奇-US淑谊F"]
-    },
-    "佰英": {
-        "pwd": "cq-baiying123",
-        "shops": ["创奇-US"]
-    },
-    "李珊": {
-        "pwd": "dm-lishan123",
-        "shops": ["大卖-US","创奇-US李珊G"]
-    },
-    "雨宜": {
-        "pwd": "cq-uuuyi123",
-        "shops": ["创奇-US雨宜B"]
+    "user3": {
+        "pwd": "user3333",
+        "shops": ["店铺4"]
     },
 }
 
@@ -57,7 +37,7 @@ if "allow_shops" not in st.session_state:
 
 
 def login_page():
-    st.markdown("# 🔐 广告分析看板 - 用户登录")
+    st.markdown("# 🔐 广告分析平台 - 用户登录")
     st.divider()
     user_name_list = list(USER_AUTH.keys())
 
@@ -86,7 +66,7 @@ if not st.session_state.login_ok:
 
 # -------------------------- 页面基础配置 --------------------------
 st.set_page_config(
-    page_title="广告分析看板",
+    page_title="广告分析平台",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
@@ -104,7 +84,7 @@ with top_col2:
         st.rerun()
 
 st.divider()
-st.title("📊 广告分析看板")
+st.title("📊 广告分析平台")
 
 # 全局TACOS模拟参数初始化
 if "global_target_tacos_pct" not in st.session_state:
@@ -126,7 +106,7 @@ GLOBAL_TARGET_TACOS = st.session_state.global_target_tacos_pct / 100
 # -------------------------- 缓存加载原始数据 --------------------------
 @st.cache_data
 def load_raw_data():
-    url = "https://github.com/Jane-zzz-123/---/raw/main/ADdata_all.xlsx"
+    url = "https://github.com/Jane-zzz-123/TOruanzhu/raw/main/ADdatabyruanzhu.xlsx"
     resp = requests.get(url)
     df = pd.read_excel(BytesIO(resp.content), sheet_name="源数据")
 
@@ -1119,7 +1099,7 @@ st.markdown("\n".join(text_lines))
 st.divider()
 
 # ===================== ✨新增模块：自然流量、告警、漏斗、帕累托、四象限散点 =====================
-st.markdown("## 🔎 七、自然流量与多维度深度诊断")
+st.markdown("## 🔎 六、自然流量与多维度深度诊断")
 # -------------------------- ①自然流量指标拆解（当月） --------------------------
 # 计算自然流量衍生指标
 curr_natural_sales = curr_sales - curr_ad_sales
@@ -1146,7 +1126,7 @@ delta_natural_order = curr_natural_order - last_natural_order
 pct_natural_sales = delta_natural_sales / last_natural_sales if last_natural_sales !=0 else 0
 pct_natural_order = delta_natural_order / last_natural_order if last_natural_order !=0 else 0
 
-st.subheader("7.1 当月自然流量指标拆解")
+st.subheader("6.1 当月自然流量指标拆解")
 nat_col1, nat_col2, nat_col3, nat_col4 = st.columns(4)
 with nat_col1:
     st.metric("自然销售额", value=f"${curr_natural_sales:,.2f}", delta=f"{delta_natural_sales:,.2f}")
@@ -1179,7 +1159,7 @@ st.info(f"""
 """)
 
 # -------------------------- ②广告订单占比 & 自然订单占比趋势 --------------------------
-st.subheader("7.2 广告/自然订单占比历史趋势")
+st.subheader("6.2 广告/自然订单占比历史趋势")
 df_trend_order = df_all_month_table.sort_values("年月", ascending=True).reset_index(drop=True)
 df_trend_order["年月中文"] = df_trend_order["年月"].apply(lambda x: f"{x.split('-')[0]}年{int(x.split('-')[1])}月")
 # 按月计算自然订单、广告订单占比
@@ -1207,7 +1187,7 @@ fig_order_ratio.update_layout(
 st.plotly_chart(fig_order_ratio, use_container_width=True)
 
 # -------------------------- ④广告流量漏斗分析 --------------------------
-st.subheader("7.3 广告流量漏斗（展示→点击→广告订单）")
+st.subheader("6.3 广告流量漏斗（展示→点击→广告订单）")
 
 imp = int(df_month_single["展示"].iloc[0])
 click = int(df_month_single["点击"].iloc[0])
@@ -1244,7 +1224,7 @@ st.info(f"""
 
 
 # -------------------------- ⑤80/20帕累托分析（SKU维度） --------------------------
-st.subheader("7.4 SKU帕累托80‑20分析")
+st.subheader("6.4 SKU帕累托80‑20分析")
 df_pareto = df_single_item[df_single_item["销售额"]>0].copy()
 # 调试信息
 sum_pareto_sales = df_pareto["销售额"].sum()
@@ -1307,7 +1287,7 @@ st.info("💡解读：曲线越早触碰80%横线，代表业绩越集中在头�
 
 
 # -------------------------- ⑥ASoAS & TACOS 联合矩阵四象限散点图 --------------------------
-st.subheader("7.5 ASoAS & TACOS 四象限矩阵分析")
+st.subheader("6.5 ASoAS & TACOS 四象限矩阵分析")
 # ==========【新增】折叠面板：业务定义说明，放在标题下方、图表前面 ==========
 with st.expander("📖 四象限业务定义说明（分界阈值：ASoAS=50%，TACOS分界=店铺整体TACOS）", expanded=False):
     st.markdown("""
@@ -1437,8 +1417,8 @@ with st.expander("📋 查看SKU象限明细（可下载）", expanded=False):
         mime="text/csv"
     )
 
-# ===================== 新增 7.6 价格分层分析 低价$0‑10｜中价$10‑15｜高价＞15 =====================
-st.subheader("7.6 价格分层投放分析（低价：$0‑10｜中价：$10‑15｜高价：＞$15）")
+# ===================== 新增 6.6 价格分层分析 低价$0‑10｜中价$10‑15｜高价＞15 =====================
+st.subheader("6.6 价格分层投放分析（低价：$0‑10｜中价：$10‑15｜高价：＞$15）")
 df_price_raw = df_single_item.copy()
 # 计算单品平均售价：销售额 / 订单量；订单=0则置np.nan
 df_price_raw["单品售价"] = np.where(df_price_raw["订单量"] > 0,
@@ -1523,8 +1503,8 @@ for _,row in df_price_group.iterrows():
         price_interp.append(f"- {t}（SKU:{sku_cnt}个）分层TACOS {tacos:.2%} {flag}")
 st.info("\n".join(price_interp))
 
-# ===================== 新增 7.7 CPC与CVR相关性散点图（广告竞价成本 vs 转化能力） =====================
-st.subheader("7.7 CPC单次点击成本 — CVR广告转化率 相关性散点(SKU维度)")
+# ===================== 新增 6.7 CPC与CVR相关性散点图（广告竞价成本 vs 转化能力） =====================
+st.subheader("6.7 CPC单次点击成本 — CVR广告转化率 相关性散点(SKU维度)")
 # 修复：直接复用df_price_raw，已经计算好单品售价，不再重新copy df_single_item
 df_corr = df_price_raw.copy()
 # 过滤有效数据：点击>0，CPC、CVR不为空
@@ -1578,7 +1558,7 @@ else:
 st.divider()
 
 # ===================== 八、自定义TACOS预算模拟（HTML前端实时计算，按历史广告花费占比分配老品预算） =====================
-st.markdown("## 📈 八、自定义TACOS预算模拟")
+st.markdown("## 📈 七、自定义TACOS预算模拟")
 shop_total_tacos = df_month_single["TACOS广告花费占比"].iloc[0]
 # ========== session状态存储 ==========
 if "sim_df_result" not in st.session_state:
