@@ -1291,19 +1291,19 @@ st.subheader("6.5 ASoAS & TACOS 四象限矩阵分析")
 # ==========【新增】折叠面板：业务定义说明，放在标题下方、图表前面 ==========
 with st.expander("📖 四象限业务定义说明（分界阈值：ASoAS=50%，TACOS分界=店铺整体TACOS）", expanded=False):
     st.markdown("""
-🟥 **右上【高ASoAS + 高TACOS｜风险区】** ASoAS＞50%，单品TACOS＞店铺整体TACOS
+🟥 **【高ASoAS + 高TACOS｜风险区】** ASoAS＞50%，单品TACOS＞店铺整体TACOS
 > 含义：销量高度依赖广告，广告成本高于店铺均值。风险：下调广告预算销量易大幅下滑，广告投产差，利润被广告费侵蚀。
 > 动作：优先优化，下调竞价、精简低效关键词压低TACOS；同步做自然排名，降低广告销售依赖。
 
-🟨 **左上【高ASoAS + 低TACOS｜广告优质但依赖广告】** ASoAS＞50%，单品TACOS＜店铺整体TACOS
+🟨 **【高ASoAS + 低TACOS｜广告优质但依赖广告】** ASoAS＞50%，单品TACOS＜店铺整体TACOS
 > 含义：广告投产效率良好，但出单高度依赖广告、自然流量薄弱。风险：流量结构单一，存在长期结构性隐患。
 > 动作：维持广告投放；重点优化埋词、评价、自然排名，拉动自然订单，降低ASoAS依赖。
 
-🟧 **右下【低ASoAS + 高TACOS｜广告浪费区】** ASoAS＜50%，单品TACOS＞店铺整体TACOS
+🟧 **【低ASoAS + 高TACOS｜广告浪费区】** ASoAS＜50%，单品TACOS＞店铺整体TACOS
 > 含义：广告花费高，但广告贡献销售占比低，多数订单本身是自然单。本质：广告内卷，抢夺原生自然订单，预算存在浪费。
 > 动作：收缩广告预算、降低竞价，减少广告蚕食自然订单。
 
-🟩 **左下【低ASoAS + 低TACOS｜健康区，优质款】** ASoAS＜50%，单品TACOS＜店铺整体TACOS
+🟩 **【低ASoAS + 低TACOS｜健康区，优质款】** ASoAS＜50%，单品TACOS＜店铺整体TACOS
 > 含义：自然流量强，广告成本可控，流量结构健康，利润质量最优。
 > 动作：维持策略，广告仅少量辅助卡位，重点保护自然排名。
 """)
@@ -1346,13 +1346,13 @@ with quad_col2:
         t = row["单品TACOS"]
         shop_t = shop_total_tacos
         if a > QUAD_ASOAS_THRESH and t > shop_t:
-            return "右上｜风险区（高ASoAS+高TACOS）"
+            return "风险区（高ASoAS+高TACOS）"
         elif a > QUAD_ASOAS_THRESH and t <= shop_t:
-            return "左上｜广告优质但依赖广告（高ASoAS+低TACOS）"
+            return "广告优质但依赖广告（高ASoAS+低TACOS）"
         elif a <= QUAD_ASOAS_THRESH and t > shop_t:
-            return "右下｜广告浪费区（低ASoAS+高TACOS）"
+            return "广告浪费区（低ASoAS+高TACOS）"
         else:
-            return "左下｜健康区优质款（低ASoAS+低TACOS）"
+            return "健康区优质款（低ASoAS+低TACOS）"
     df_quad_sku["quad_group"] = df_quad_sku.apply(get_quad, axis=1)
     quad_stats = df_quad_sku["quad_group"].value_counts()
     total_sku = len(df_quad_sku)
@@ -1386,9 +1386,9 @@ stats_text.append(f"> 参与统计有效SKU总数：{total_sku}")
 st.markdown("\n".join(stats_text))
 
 # 自动业务小结（根据象限数量判断）
-risk_cnt = quad_stats.get("右上｜风险区（高ASoAS+高TACOS）",0)
-waste_cnt = quad_stats.get("右下｜广告浪费区（低ASoAS+高TACOS）",0)
-good_cnt = quad_stats.get("左下｜健康区优质款（低ASoAS+低TACOS）",0)
+risk_cnt = quad_stats.get("风险区（高ASoAS+高TACOS）",0)
+waste_cnt = quad_stats.get("广告浪费区（低ASoAS+高TACOS）",0)
+good_cnt = quad_stats.get("健康区优质款（低ASoAS+低TACOS）",0)
 if risk_cnt > total_sku * 0.3:
     summary = f"⚠️重点提示：风险区SKU数量较多（{risk_cnt}个），为本月核心问题集群，需要优先集中优化广告与自然流量。"
 elif waste_cnt > total_sku * 0.25:
