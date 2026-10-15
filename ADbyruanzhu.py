@@ -103,12 +103,16 @@ GLOBAL_TARGET_TACOS = st.session_state.global_target_tacos_pct / 100
 
 
 
-# -------------------------- 缓存加载原始数据 --------------------------
+# -------------------------- 缓存加载原始数据【改造：本地上传】 --------------------------
+
+# 增加上传组件，放在load_raw_data函数外面
+st.subheader("📂 上传广告源数据Excel文件")
+uploaded_file = st.file_uploader("请上传Excel，sheet名称必须为【源数据】，字段与原模板保持一致", type=["xlsx"])
+
 @st.cache_data
-def load_raw_data():
-    url = "https://github.com/Jane-zzz-123/TOruanzhu/raw/main/ADdatabyruanzhu.xlsx"
-    resp = requests.get(url)
-    df = pd.read_excel(BytesIO(resp.content), sheet_name="源数据")
+def load_raw_data(file_bytes: bytes):
+    # 传入文件字节，不再访问github url
+    df = pd.read_excel(BytesIO(file_bytes), sheet_name="源数据")
 
     # 标准化时间
     df["时间"] = pd.to_datetime(df["时间"])
