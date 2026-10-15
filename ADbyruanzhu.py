@@ -1206,34 +1206,8 @@ fig_order_ratio.update_layout(
 )
 st.plotly_chart(fig_order_ratio, use_container_width=True)
 
-# -------------------------- ③简单异常告警模块 --------------------------
-st.subheader("7.3 当月广告风险自动告警")
-warn_list = []
-# 告警规则
-if curr_acos > 0.35:
-    warn_list.append(f"🔴 ACOS过高：当月ACOS {curr_acos:.2%}，大于35%，广告投产较差")
-if has_last_month and last_cpc>0 and (curr_cpc - last_cpc)/last_cpc > 0.30:
-    warn_list.append(f"🔴 CPC大幅上涨：CPC环比上涨 {((curr_cpc-last_cpc)/last_cpc):.1%}，点击成本抬升明显")
-if has_last_month and last_cvr>0 and ((curr_cvr-last_cvr)/last_cvr) < -0.20:
-    warn_list.append(f"🟡 CVR大幅下滑：转化率环比下降 {abs((curr_cvr-last_cvr)/last_cvr):.1%}，广告落地页转化能力下降")
-if has_last_month and last_ad_spend>0 and (curr_ad_spend-last_ad_spend)/last_ad_spend>0.50 and curr_ad_sales <= last_ad_sales*1.05:
-    warn_list.append(f"🔴 广告花费大幅增加，但广告销售额几乎无增长，存在无效消耗风险")
-# 新品未出单花费告警
-df_warn_newzero = df_single_item[ (df_single_item["产品类型"]=="新品未出单") & (df_single_item["广告花费"]>5) ]
-if len(df_warn_newzero)>0:
-    sum_zero_spend = df_warn_newzero["广告花费"].sum()
-    warn_list.append(f"🟡新品未出单SKU合计广告花费 ${sum_zero_spend:,.2f}，多个新品花钱无广告出单，请排查")
-if curr_natural_sales_pct < 0.30:
-    warn_list.append(f"🟢⚠️店铺流量高度依赖广告，自然销售额占比仅 {curr_natural_sales_pct:.2%}，需布局自然流量")
-
-if len(warn_list)==0:
-    st.success("✅ 本月未检测到明显广告风险，投放整体健康")
-else:
-    for w in warn_list:
-        st.warning(w)
-
 # -------------------------- ④广告流量漏斗分析 --------------------------
-st.subheader("7.4 广告流量漏斗（展示→点击→广告订单）")
+st.subheader("7.3 广告流量漏斗（展示→点击→广告订单）")
 
 imp = int(df_month_single["展示"].iloc[0])
 click = int(df_month_single["点击"].iloc[0])
@@ -1270,7 +1244,7 @@ st.info(f"""
 
 
 # -------------------------- ⑤80/20帕累托分析（SKU维度） --------------------------
-st.subheader("7.5 SKU帕累托80‑20分析")
+st.subheader("7.4 SKU帕累托80‑20分析")
 df_pareto = df_single_item[df_single_item["销售额"]>0].copy()
 # 调试信息
 sum_pareto_sales = df_pareto["销售额"].sum()
@@ -1333,7 +1307,29 @@ st.info("💡解读：曲线越早触碰80%横线，代表业绩越集中在头�
 
 
 # -------------------------- ⑥ASoAS & TACOS 联合矩阵四象限散点图 --------------------------
-st.subheader("7.6 ASoAS & TACOS 四象限矩阵分析")
+st.subheader("7.5 ASoAS & TACOS 四象限矩阵分析")
+# ==========【新增】折叠面板：业务定义说明，放在标题下方、图表前面 ==========
+with st.expander("📖 四象限业务定义说明（分界阈值：ASoAS=50%，TACOS分界=店铺整体TACOS）", expanded=False):
+    st.markdown("""
+🟥 **右上【高ASoAS + 高TACOS｜风险区】** ASoAS＞50%，单品TACOS＞店铺整体TACOS
+> 含义：销量高度依赖广告，广告成本高于店铺均值。风险：下调广告预算销量易大幅下滑，广告投产差，利润被广告费侵蚀。
+> 动作：优先优化，下调竞价、精简低效关键词压低TACOS；同步做自然排名，降低广告销售依赖。
+
+🟨 **左上【高ASoAS + 低TACOS｜广告优质但依赖广告】** ASoAS＞50%，单品TACOS＜店铺整体TACOS
+> 含义：广告投产效率良好，但出单高度依赖广告、自然流量薄弱。风险：流量结构单一，存在长期结构性隐患。
+> 动作：维持广告投放；重点优化埋词、评价、自然排名，拉动自然订单，降低ASoAS依赖。
+
+🟧 **右下【低ASoAS + 高TACOS｜广告浪费区】** ASoAS＜50%，单品TACOS＞店铺整体TACOS
+> 含义：广告花费高，但广告贡献销售占比低，多数订单本身是自然单。本质：广告内卷，抢夺原生自然订单，预算存在浪费。
+> 动作：收缩广告预算、降低竞价，减少广告蚕食自然订单。
+
+🟩 **左下【低ASoAS + 低TACOS｜健康区，优质款】** ASoAS＜50%，单品TACOS＜店铺整体TACOS
+> 含义：自然流量强，广告成本可控，流量结构健康，利润质量最优。
+> 动作：维持策略，广告仅少量辅助卡位，重点保护自然排名。
+""")
+# ========== 定义四象限阈值（统一50% ASoAS分界；TACOS分界=店铺整体TACOS）==========
+QUAD_ASOAS_THRESH = 0.50
+
 quad_col1, quad_col2 = st.columns([1,1])
 # 左：历史月度四象限
 with quad_col1:
@@ -1347,7 +1343,7 @@ with quad_col1:
         marker=dict(size=10,color="#165DFF"),
         hovertemplate="月份:%{text}<br>ASoAS:%{x:.2%}<br>TACOS:%{y:.2%}<extra></extra>"
     ))
-    fig_quad_month.add_vline(x=0.5, line_dash="dash", line_color="#aaaaaa")
+    fig_quad_month.add_vline(x=QUAD_ASOAS_THRESH, line_dash="dash", line_color="#aaaaaa")
     fig_quad_month.add_hline(y=GLOBAL_TARGET_TACOS, line_dash="dash", line_color="#ff7700",annotation_text=f"目标TACOS {GLOBAL_TARGET_TACOS:.1%}")
     fig_quad_month.update_layout(
         title="历史月份四象限",
@@ -1357,13 +1353,29 @@ with quad_col1:
     )
     st.plotly_chart(fig_quad_month, use_container_width=True)
 
-# 右：当月SKU维度四象限（修复KeyError：不要引用不存在的列ASoAS广告销售依赖度）
+# 右：当月SKU维度四象限
 with quad_col2:
     df_quad_sku = df_single_item.copy()
     # SKU维度ASoAS：单品广告销售额 /单品总销售额
     df_quad_sku["sku_ASoAS"] = np.where(df_quad_sku["销售额"]>0, df_quad_sku["广告销售额"]/df_quad_sku["销售额"], np.nan)
-    # ✅只过滤真实存在的两列：sku_ASoAS（现场生成）、单品TACOS
     df_quad_sku = df_quad_sku.dropna(subset=["sku_ASoAS","单品TACOS"])
+
+    # ========== 四象限标签分类 & 统计数量（统一50% ASoAS分界，TACOS以店铺整体TACOS为界） ==========
+    def get_quad(row):
+        a = row["sku_ASoAS"]
+        t = row["单品TACOS"]
+        shop_t = shop_total_tacos
+        if a > QUAD_ASOAS_THRESH and t > shop_t:
+            return "右上｜风险区（高ASoAS+高TACOS）"
+        elif a > QUAD_ASOAS_THRESH and t <= shop_t:
+            return "左上｜广告优质但依赖广告（高ASoAS+低TACOS）"
+        elif a <= QUAD_ASOAS_THRESH and t > shop_t:
+            return "右下｜广告浪费区（低ASoAS+高TACOS）"
+        else:
+            return "左下｜健康区优质款（低ASoAS+低TACOS）"
+    df_quad_sku["quad_group"] = df_quad_sku.apply(get_quad, axis=1)
+    quad_stats = df_quad_sku["quad_group"].value_counts()
+    total_sku = len(df_quad_sku)
 
     fig_quad_sku = go.Figure()
     fig_quad_sku.add_trace(go.Scatter(
@@ -1374,7 +1386,8 @@ with quad_col2:
         marker=dict(size=8,color="#E45756"),
         hovertemplate="MSKU:%{text}<br>单品ASoAS:%{x:.2%}<br>单品TACOS:%{y:.2%}<extra></extra>"
     ))
-    fig_quad_sku.add_vline(x=0.5, line_dash="dash", line_color="#aaaaaa")
+    # 虚线保持50%，和统计逻辑完全对齐
+    fig_quad_sku.add_vline(x=QUAD_ASOAS_THRESH, line_dash="dash", line_color="#aaaaaa")
     fig_quad_sku.add_hline(y=shop_total_tacos, line_dash="dash", line_color="#ff7700",annotation_text=f"店铺TACOS {shop_total_tacos:.1%}")
     fig_quad_sku.update_layout(
         title=f"{select_month} SKU四象限散点",
@@ -1383,15 +1396,184 @@ with quad_col2:
         height=420
     )
     st.plotly_chart(fig_quad_sku, use_container_width=True)
+# 输出自动统计面板
+st.markdown("### 📊 当月SKU象限数量统计")
+stats_text = []
+for quad_name, cnt in quad_stats.items():
+    pct = cnt / total_sku
+    stats_text.append(f"- {quad_name}：**{cnt}个SKU**，占有效SKU {pct:.1%}")
+stats_text.append(f"> 参与统计有效SKU总数：{total_sku}")
+st.markdown("\n".join(stats_text))
 
-st.markdown("""
-> 📍四象限解读
-> 1️⃣右上【高ASoAS+高TACOS】风险区：高度依赖广告，广告成本还很高，重点优化
-> 2️⃣左上【高ASoAS+低TACOS】：广告效率好，但过度依赖广告，需要做自然流量
-> 3️⃣右下【低ASoAS+高TACOS】：广告花钱，但广告贡献销售占比很低，广告浪费严重
-> 4️⃣左下【低ASoAS+低TACOS】健康区：自然流量强，广告成本可控
+# 自动业务小结（根据象限数量判断）
+risk_cnt = quad_stats.get("右上｜风险区（高ASoAS+高TACOS）",0)
+waste_cnt = quad_stats.get("右下｜广告浪费区（低ASoAS+高TACOS）",0)
+good_cnt = quad_stats.get("左下｜健康区优质款（低ASoAS+低TACOS）",0)
+if risk_cnt > total_sku * 0.3:
+    summary = f"⚠️重点提示：风险区SKU数量较多（{risk_cnt}个），为本月核心问题集群，需要优先集中优化广告与自然流量。"
+elif waste_cnt > total_sku * 0.25:
+    summary = f"⚠️重点提示：广告浪费区SKU较多（{waste_cnt}个），大量预算用于抢夺自然单，建议批量收缩广告投放。"
+elif good_cnt / total_sku >0.4:
+    summary = f"✅健康度较好：健康区优质款占比高（{good_cnt}个），店铺流量结构优质。"
+else:
+    summary = "📌现状：SKU分布较为分散，建议优先治理风险区SKU，逐步培育健康款。"
+st.info(summary)
+
+# ========== 折叠面板：SKU象限明细预览 + CSV下载 ==========
+with st.expander("📋 查看SKU象限明细（可下载）", expanded=False):
+    # 展示预览表，格式化百分比
+    df_preview = df_quad_sku[["MSKU", "sku_ASoAS", "单品TACOS", "quad_group"]].copy()
+    df_preview["sku_ASoAS"] = df_preview["sku_ASoAS"].apply(lambda x: f"{x:.1%}")
+    df_preview["单品TACOS"] = df_preview["单品TACOS"].apply(lambda x: f"{x:.1%}")
+    st.dataframe(df_preview, use_container_width=True)
+
+    # 导出原始数据（保留浮点，方便Excel后续计算）
+    df_export = df_quad_sku[["MSKU", "sku_ASoAS", "单品TACOS", "quad_group"]].copy()
+    csv_data = df_export.to_csv(index=False, encoding="utf-8-sig")
+    st.download_button(
+        label="📥 下载CSV明细",
+        data=csv_data,
+        file_name=f"{select_month}_ASoAS_TACOS_象限明细.csv",
+        mime="text/csv"
+    )
+
+# ===================== 新增 7.6 价格分层分析 低价$0‑10｜中价$10‑15｜高价＞15 =====================
+st.subheader("7.6 价格分层投放分析（低价：$0‑10｜中价：$10‑15｜高价：＞$15）")
+df_price_raw = df_single_item.copy()
+# 计算单品平均售价：销售额 / 订单量；订单=0则置np.nan
+df_price_raw["单品售价"] = np.where(df_price_raw["订单量"] > 0,
+                                    df_price_raw["销售额"] / df_price_raw["订单量"],
+                                    np.nan)
+
+# 价格分层函数
+def price_level_tag(price):
+    if pd.isna(price):
+        return "无销量SKU"
+    elif price <= 10:
+        return "低价款 $0‑10"
+    elif price <=15:
+        return "中价款 $10‑15"
+    else:
+        return "高价款 >$15"
+
+df_price_raw["价格分层"] = df_price_raw["单品售价"].apply(price_level_tag)
+
+# 按【价格分层】聚合指标
+df_price_group = df_price_raw.groupby("价格分层").agg({
+    "广告花费":"sum",
+    "广告销售额":"sum",
+    "销售额":"sum",
+    "广告订单量":"sum",
+    "订单量":"sum",
+    "展示":"sum",
+    "点击":"sum",
+    "MSKU":"count"
+}).rename(columns={"MSKU":"SKU数量"}).reset_index()
+
+# 计算分层衍生指标 TACOS、ACOS
+df_price_group["分层TACOS"] = np.where(df_price_group["销售额"]>0,
+                                       df_price_group["广告花费"]/df_price_group["销售额"], np.nan)
+df_price_group["分层ACOS"] = np.where(df_price_group["广告销售额"]>0,
+                                      df_price_group["广告花费"]/df_price_group["广告销售额"], np.nan)
+
+p1_col, p2_col = st.columns([1.2,1])
+with p1_col:
+    fig_price_spend = go.Figure()
+    fig_price_spend.add_trace(go.Bar(
+        x=df_price_group["价格分层"],
+        y=df_price_group["广告花费"],
+        marker_color=["#E45756","#F58518","#4C78A8","#949494"],
+        customdata=df_price_group[["SKU数量","分层TACOS","分层ACOS"]].values,
+        hovertemplate="%{x}<br>广告花费:$%{y:,.2f}<br>SKU数量:%{customdata[0]}<br>分层TACOS:%{customdata[1]:.2%}<br>分层ACOS:%{customdata[2]:.2%}<extra></extra>"
+    ))
+    fig_price_spend.update_layout(title="各价格分层广告花费",yaxis_title="广告花费($)",height=380)
+    st.plotly_chart(fig_price_spend,use_container_width=True)
+
+with p2_col:
+    fig_price_kpi = go.Figure()
+    fig_price_kpi.add_trace(go.Scatter(
+        x=df_price_group["价格分层"],
+        y=df_price_group["分层TACOS"],
+        name="分层TACOS",
+        mode="lines+markers",marker_size=8,line_width=2
+    ))
+    fig_price_kpi.add_trace(go.Scatter(
+        x=df_price_group["价格分层"],
+        y=df_price_group["分层ACOS"],
+        name="分层ACOS",
+        mode="lines+markers",marker_size=8,line_width=2
+    ))
+    fig_price_kpi.update_layout(title="各价格分层 TACOS & ACOS",yaxis_tickformat=".1%",height=380)
+    st.plotly_chart(fig_price_kpi,use_container_width=True)
+
+# 价格分层统计表格展示
+st.dataframe(df_price_group.style
+             .format({"分层TACOS":"{:.2%}","分层ACOS":"{:.2%}","广告花费":"${:.2f}","广告销售额":"${:.2f}","销售额":"${:.2f}"})
+             ,use_container_width=True)
+
+# 自动解读
+price_interp = []
+price_interp.append(f"店铺本月基准TACOS：{shop_total_tacos:.2%}")
+for _,row in df_price_group.iterrows():
+    t = row["价格分层"]
+    sku_cnt = row["SKU数量"]
+    tacos = row["分层TACOS"]
+    if pd.notna(tacos):
+        flag = "🔴高于店铺TACOS" if tacos>shop_total_tacos else "🟢低于店铺TACOS"
+        price_interp.append(f"- {t}（SKU:{sku_cnt}个）分层TACOS {tacos:.2%} {flag}")
+st.info("\n".join(price_interp))
+
+# ===================== 新增 7.7 CPC与CVR相关性散点图（广告竞价成本 vs 转化能力） =====================
+st.subheader("7.7 CPC单次点击成本 — CVR广告转化率 相关性散点(SKU维度)")
+# 修复：直接复用df_price_raw，已经计算好单品售价，不再重新copy df_single_item
+df_corr = df_price_raw.copy()
+# 过滤有效数据：点击>0，CPC、CVR不为空
+df_corr = df_corr[(df_corr["点击"]>0) & df_corr["CPC"].notna() & df_corr["CVR"].notna()].copy()
+
+if df_corr.empty:
+    st.warning("有效SKU样本不足，无法绘制CPC‑CVR散点（需要SKU有广告点击数据）")
+else:
+    fig_corr = go.Figure()
+    fig_corr.add_trace(go.Scatter(
+        x=df_corr["CPC"],
+        y=df_corr["CVR"],
+        text=df_corr["MSKU"],
+        mode="markers",
+        marker=dict(
+            size=9,
+            color=df_corr["单品TACOS"],
+            colorscale="RdYlGn_r",
+            colorbar=dict(title="单品TACOS"),
+            showscale=True
+        ),
+        customdata=df_corr[["单品售价","单品TACOS","广告花费"]].values,
+        hovertemplate=
+        "MSKU:%{text}<br>"
+        "CPC:$%{x:.2f}<br>"
+        "CVR:%{y:.2%}<br>"
+        "单品售价:$%{customdata[0]:.2f}<br>"
+        "单品TACOS:%{customdata[1]:.2%}<br>"
+        "广告花费:$%{customdata[2]:,.2f}<extra></extra>"
+    ))
+    fig_corr.update_layout(
+        title="SKU维度 CPC(单次点击成本) VS CVR(广告转化率)",
+        xaxis_title="CPC 单次点击成本 ($)",
+        yaxis_title="CVR 广告转化率",
+        yaxis_tickformat=".1%",
+        height=440,
+        hovermode="closest"
+    )
+    st.plotly_chart(fig_corr,use_container_width=True)
+
+    st.info("""
+📌散点解读：
+1. 理想分布：**右上方**：高CPC同时高CVR，出价高转化也高，属于优质SKU；
+2. 左上方：低CPC高CVR：性价比极高，低价拿流量，转化好；
+3. 右下方：**高CPC、低CVR（重点风险）**：出价很贵，但是点击后很难下单，需要优化Listing/评价/价格；
+4. 左下方：低CPC低CVR：流量便宜但是转化差，关键词精准度差；
+> 点颜色越深代表单品TACOS越高，快速定位高成本坏SKU。
 """)
-
+# ===================== 新增模块结束 =====================
 
 st.divider()
 
