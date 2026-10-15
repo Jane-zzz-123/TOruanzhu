@@ -105,20 +105,17 @@ GLOBAL_TARGET_TACOS = st.session_state.global_target_tacos_pct / 100
 
 # -------------------------- 缓存加载原始数据【改造：本地上传】 --------------------------
 
-# 增加上传组件，放在load_raw_data函数外面
+# -------------------------- 缓存加载原始数据【改造：本地上传】 --------------------------
 st.subheader("📂 上传广告源数据Excel文件")
 uploaded_file = st.file_uploader("请上传Excel，sheet名称必须为【源数据】，字段与原模板保持一致", type=["xlsx"])
 
 @st.cache_data
 def load_raw_data(file_bytes: bytes):
-    # 传入文件字节，不再访问github url
     df = pd.read_excel(BytesIO(file_bytes), sheet_name="源数据")
-
     # 标准化时间
     df["时间"] = pd.to_datetime(df["时间"])
     df["年月"] = df["时间"].dt.to_period("M").astype(str)
     df["年月日期"] = pd.to_datetime(df["年月"] + "-01")
-
     # 数值清洗
     num_cols = [
         "展示", "点击", "广告花费", "SP广告费", "SB广告费", "SBV广告费",
@@ -128,17 +125,25 @@ def load_raw_data(file_bytes: bytes):
     ]
     for col in num_cols:
         df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)
-
     # 上架时间转换
     df["开售时间"] = pd.to_datetime(df["开售时间"], errors="coerce")
-    # 校验产品类型是否存在，不存在抛提示
+    # 校验产品类型是否存在
     if "产品类型" not in df.columns:
-        st.error("❌ 远程Excel未包含【产品类型】字段，请先上传更新后的文件到GitHub！")
+        st.error("❌ Excel未包含【产品类型】字段，请检查上传文件！")
     return df
 
-
-df_raw = load_raw_data()
-
+df_raw = None
+if uploaded_file is not None:
+    file_content_bytes = uploaded_file.read()
+    try:
+        df_raw = load_raw_data(file_content_bytes)
+        st.success(f"✅文件上传解析成功，共 {len(df_raw)} 行数据")
+    except Exception as e:
+        st.error(f"❌文件解析失败！请确认是xlsx格式，工作表名称为【源数据】。报错信息：{str(e)}")
+        st.stop()
+else:
+    st.info("⚠️请上传Excel源数据文件，上传后才可以继续使用看板")
+    st.stop()
 # ===================== 页面顶部筛选区：仅2个单选控件【店铺、单月年月】 =====================
 st.markdown("### 🔍 数据筛选条件（仅单月数据）")
 filter_shop_col, filter_month_col = st.columns([1, 2])
