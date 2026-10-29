@@ -11,6 +11,7 @@ import pandas as pd
 import streamlit as st
 import json
 import numpy as np
+import math
 
 st.set_page_config(page_title="三表勾稽核板", layout="wide", page_icon="📊")
 
@@ -636,10 +637,17 @@ if st.session_state.debt_html_json_rows is not None:
     </script>
     '''
     # 替换占位符
-    final_html = debt_html_template\
-        .replace("__TR__", target_ratio_val)\
-        .replace("__LIAB_JSON__", liab_json_str)\
-        .replace("__A_TOTAL__", str(total_asset_val))\
+    # 处理资产负债率，格式化+异常兜底
+    if target_ratio_val is not None and isinstance(target_ratio_val, (int, float)) and not (
+            math.isnan(target_ratio_val) or math.isinf(target_ratio_val)):
+        tr_str = f"{target_ratio_val:.2f}"
+    else:
+        tr_str = "-"
+
+    final_html = debt_html_template \
+        .replace("__TR__", tr_str) \
+        .replace("__LIAB_JSON__", liab_json_str) \
+        .replace("__A_TOTAL__", str(total_asset_val)) \
         .replace("__EQ_FIXED__", str(sum_equity_fixed))
 
     st.components.v1.html(final_html, height=520, scrolling=True)
