@@ -411,3 +411,245 @@ def render_tab(tab, df, key):
 render_tab(tab1, st.session_state.bs, "editor_bs")
 render_tab(tab2, st.session_state.pl, "editor_pl")
 render_tab(tab3, st.session_state.cf, "editor_cf")
+
+# ===================== 新增：资产负债率HTML模拟模块（复刻TACOS交互范式） =====================
+st.markdown("## 📊 资产负债率自定义模拟（HTML前端实时测算）")
+# session状态隔离，和原来scale函数互不干扰
+if "debt_html_json_rows" not in st.session_state:
+    st.session_state.debt_html_json_rows = None
+if "html_target_ratio" not in st.session_state:
+    st.session_state.html_target_ratio = None
+if "debt_sim_result" not in st.session_state:
+    st.session_state.debt_sim_result = None
+if "debt_sim_summary" not in st.session_state:
+    st.session_state.debt_sim_summary = None
+
+# 读取当前最新资产负债表数据
+bs_data = st.session_state.bs.copy()
+# 取出资产总计
+total_asset_val = getv(bs_data, "资产总计", col="期末金额(元)")
+
+# 取出所有负债input科目（和LIABILITY_INPUT_ITEMS一致）
+liab_items = LIABILITY_INPUT_ITEMS
+liab_raw_list = []
+sum_old_liab = 0.0
+for item_name in liab_items:
+    val = getv(bs_data, item_name, col="期末金额(元)")
+    liab_raw_list.append({
+        "item_name": item_name,
+        "original_value": val
+    })
+    sum_old_liab += val
+
+# 权益固定项：实收资本、资本公积、盈余公积（不变，只有未分配利润做平衡项）
+equity_fixed = [
+    {"item_name":"实收资本（或股本）","value": getv(bs_data,"实收资本（或股本）","期末金额(元)")},
+    {"item_name":"资本公积","value": getv(bs_data,"资本公积","期末金额(元)","期末金额(元)")},
+    {"item_name":"盈余公积","value": getv(bs_data,"盈余公积","期末金额(元)")},
+]
+sum_equity_fixed = sum([x["value"] for x in equity_fixed])
+
+st.subheader("⚙️ 第一步：设置目标资产负债率")
+st.markdown("""
+> 📘**模拟规则（资产总额保持固定不变）**
+> 1. 目标总负债 = 资产总计 × 目标资产负债率
+> 2. 负债基准分配：【按原有各个负债科目占原有总负债比例分摊目标总负债】
+> 3. 权益：实收资本/资本公积/盈余公积固定不变，差额全部由【未分配利润】自动平衡
+> 4. 支持手动修改任意负债科目金额，前端实时重算总负债、资产负债率、校验资产恒等式
+> 💡微小差额属于计算机浮点精度误差。
+""")
+col1, col2 = st.columns([4,1])
+with col1:
+    target_ratio_input = st.number_input(
+        "目标资产负债率(%)", min_value=0.0, max_value=95.0,
+        value=75.0, step=5.0,
+        help="资产总额保持不变；基准负债按原有负债结构比例分摊，可单独修改每个负债科目金额"
+    )
+with col2:
+    reset_debt_sim = st.button("🔄 重置负债模拟", type="secondary")
+    if reset_debt_sim:
+        st.session_state.debt_html_json_rows = None
+        st.session_state.html_target_ratio = None
+        st.session_state.debt_sim_result = None
+        st.session_state.debt_sim_summary = None
+        st.rerun()
+
+start_debt_calc = st.button("✅ 确认参数，生成负债模拟表格", type="primary")
+if start_debt_calc:
+    import json
+    json_liab_rows = json.dumps(liab_raw_list, ensure_ascii=False)
+    st.session_state.debt_html_json_rows = json_liab_rows
+    st.session_state.html_target_ratio = str(target_ratio_input)
+
+if st.session_state.debt_html_json_rows is not None:
+    import json
+    liab_json_str = st.session_state.debt_html_json_rows
+    target_ratio_val = float(st.session_state.html_target_ratio)
+
+    debt_html_template = '''
+    <div style="font-size:13px;">
+    <div style="display:flex;gap:15px;flex-wrap:wrap;margin-bottom:15px;padding:10px;background:#f6f8fa;border-radius:6px;">
+      <div><b>设定目标负债率：</b><span id="targetRatioSpan" style="color:#165DFF;font-weight:bold;">__TR__%</span></div>
+      <div><b>固定资产总额：</b>$<span id="assetTotalSpan" style="color:#00B42A;font-weight:bold;">0</span></div>
+      <div><b>基准总负债：</b>$<span id="baseLiabTotal" style="color:#722ED1;font-weight:bold;">0</span></div>
+      <div><b>修改后总负债：</b>$<span id="editLiabTotal" style="color:#722ED1;font-weight:bold;">0</span></div>
+      <div><b>修改后实际负债率：</b><span id="realRatioSpan" style="color:#F53F3F;font-weight:bold;">0%</span></div>
+      <div><b>资产恒等式差额：</b><span id="balanceDiffSpan" style="font-weight:bold;">0</span></div>
+    </div>
+    <div style="max-height:400px;overflow:auto;">
+    <table border="1" cellpadding="4" cellspacing="0" style="width:100%;border-collapse:collapse;">
+    <thead>
+    <tr style="background:#e5e6eb;">
+    <th>负债科目名称</th>
+    <th>原始期末金额</th>
+    <th>基准分摊金额【只读】</th>
+    <th>修改金额【可编辑】</th>
+    <th>金额差值(修改-基准)</th>
+    </tr>
+    </thead>
+    <tbody id="liabTb"></tbody>
+    </table>
+    </div>
+    <br />
+    <button onclick="saveDebtData()" style="background:#165DFF;color:white;padding:6px 14px;border-radius:4px;border:none;">✅ 回传负债模拟结果（一键复制JSON）</button>
+    <div id="debtTip" style="color:#00875a;display:none;margin:8px 0;">✅JSON已复制到剪贴板！粘贴到下方输入框，点击解析按钮即可</div>
+    </div>
+    <script>
+    const liabRawData = JSON.parse(`__LIAB_JSON__`);
+    const targetRatio = Number("__TR__") / 100;
+    const assetTotal = Number("__A_TOTAL__");
+    const sumEquityFixed = Number("__EQ_FIXED__");
+
+    // 第一步：原始负债合计
+    const originalSumLiab = liabRawData.reduce((s, r)=> s + Number(r.original_value), 0);
+    // 目标负债总额
+    const targetTotalLiab = assetTotal * targetRatio;
+
+    // 基准分摊：按原始占比分配
+    liabRawData.forEach(row=>{
+        const orig = Number(row.original_value);
+        let baseVal;
+        if(originalSumLiab > 0){
+            baseVal = targetTotalLiab * (orig / originalSumLiab);
+        }else{
+            baseVal = targetTotalLiab / liabRawData.length;
+        }
+        row.baseVal = baseVal;
+        row.editVal = baseVal;
+    })
+
+    function recalcLiabTable(){
+        const tbDom = document.getElementById("liabTb");
+        tbDom.innerHTML = "";
+        let sumEditLiab = 0;
+        let sumBaseLiab = 0;
+
+        liabRawData.forEach((row, idx)=>{
+            const tr = document.createElement("tr");
+            const origVal = Number(row.original_value);
+            const baseVal = Number(row.baseVal);
+            const editVal = Number(row.editVal);
+            const diff = editVal - baseVal;
+            sumBaseLiab += baseVal;
+            sumEditLiab += editVal;
+
+            let diffColor = "#000000";
+            if(diff > 1) diffColor = "#c41e3a";
+            if(diff < -1) diffColor = "#00875a";
+
+            tr.innerHTML = `
+                <td>${row.item_name}</td>
+                <td>$${origVal.toFixed(2)}</td>
+                <td>$${baseVal.toFixed(2)}</td>
+                <td><input type="number" min=0 step=1 style="width:140px" value="${editVal.toFixed(2)}" onchange="updateLiabVal(${idx},this.value)"></td>
+                <td style="color:${diffColor};font-weight:bold">${diff.toFixed(2)}</td>
+            `
+            tbDom.appendChild(tr);
+        })
+        // 平衡项：未分配利润
+        const retainedProfit = assetTotal - sumEditLiab - sumEquityFixed;
+        const balanceDiff = (sumEditLiab + sumEquityFixed + retainedProfit) - assetTotal;
+        const realRatio = assetTotal>0 ? sumEditLiab / assetTotal : 0;
+
+        document.getElementById("assetTotalSpan").innerText = assetTotal.toFixed(2);
+        document.getElementById("baseLiabTotal").innerText = sumBaseLiab.toFixed(2);
+        document.getElementById("editLiabTotal").innerText = sumEditLiab.toFixed(2);
+        document.getElementById("realRatioSpan").innerText = (realRatio*100).toFixed(2)+"%";
+        document.getElementById("balanceDiffSpan").innerText = balanceDiff.toFixed(2);
+        if(Math.abs(balanceDiff)<0.01){
+            document.getElementById("balanceDiffSpan").style.color="#00875a";
+        }else{
+            document.getElementById("balanceDiffSpan").style.color="#c41e3a";
+        }
+    }
+
+    function updateLiabVal(idx, newVal){
+        liabRawData[idx].editVal = Number(newVal);
+        recalcLiabTable();
+    }
+
+    function round2(num){
+        return Math.round(num*100)/100;
+    }
+
+    async function saveDebtData(){
+        const finalSumEdit = liabRawData.reduce((s,r)=>s+Number(r.editVal),0);
+        const retainedProfit = assetTotal - finalSumEdit - sumEquityFixed;
+        const payload = {
+            target_ratio_pct: Number("__TR__"),
+            asset_total: assetTotal,
+            sum_equity_fixed: sumEquityFixed,
+            new_retained_profit: retainedProfit,
+            liab_list: liabRawData.map(x=>{
+                return {
+                    item_name: x.item_name,
+                    original_value: round2(x.original_value),
+                    baseVal: round2(x.baseVal),
+                    editVal: round2(x.editVal),
+                    diff: round2(x.editVal - x.baseVal)
+                }
+            })
+        }
+        const jsonStr = JSON.stringify(payload);
+        await navigator.clipboard.writeText(jsonStr);
+        document.getElementById("debtTip").style.display="block";
+        setTimeout(()=>{document.getElementById("debtTip").style.display="none"},3000)
+    }
+    recalcLiabTable();
+    </script>
+    '''
+    # 替换占位符
+    final_html = debt_html_template\
+        .replace("__TR__", target_ratio_val)\
+        .replace("__LIAB_JSON__", liab_json_str)\
+        .replace("__A_TOTAL__", str(total_asset_val))\
+        .replace("__EQ_FIXED__", str(sum_equity_fixed))
+
+    st.components.v1.html(final_html, height=520, scrolling=True)
+
+    st.info("👉 修改负债金额后，点击【回传负债模拟结果（一键复制JSON）】，复制JSON粘贴到下方输入框，点击解析回写资产负债表")
+    debt_json_input = st.text_area("粘贴负债模拟JSON", height=120)
+    parse_debt_btn = st.button("📥 解析负债模拟结果，写入资产负债表", type="primary")
+    if parse_debt_btn:
+        try:
+            payload = json.loads(debt_json_input.strip())
+            bs_update = st.session_state.bs.copy()
+            # 回写所有负债科目
+            for liab_row in payload["liab_list"]:
+                setv(bs_update, liab_row["item_name"], liab_row["editVal"], col="期末金额(元)")
+            # 回写平衡项：未分配利润
+            setv(bs_update, "未分配利润", payload["new_retained_profit"], col="期末金额(元)")
+            st.session_state.bs = bs_update
+            recalc()
+            st.success("✅ 解析成功！负债、未分配利润已更新到资产负债表，三表自动重算勾稽关系")
+            st.rerun()
+        except Exception as e:
+            st.error(f"解析失败：{e}")
+
+    if st.session_state.debt_sim_result is not None:
+        st.divider()
+        st.subheader("📊 本次负债率模拟汇总")
+        sim_sum = st.session_state.debt_sim_summary
+        st.dataframe(st.session_state.debt_sim_result, use_container_width=True)
+
+
