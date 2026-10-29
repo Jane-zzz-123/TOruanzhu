@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
-"""
-三表勾稽核板（完整版）
+""" 三表勾稽核板（完整版）
 功能：
   1. 上传Excel（三sheet：资产负债表/利润表/现金流量表）
   2. KPI卡片：资产总计、负债合计、资产负债率、净利润、毛利率、净利率、流动比率、速动比率
@@ -10,6 +9,8 @@
 """
 import pandas as pd
 import streamlit as st
+import json
+import numpy as np
 
 st.set_page_config(page_title="三表勾稽核板", layout="wide", page_icon="📊")
 
@@ -161,13 +162,31 @@ if "cf" not in st.session_state:
 if "target_debt_ratio" not in st.session_state:
     st.session_state.target_debt_ratio = 0.75
 
-# ====================== 工具函数 ======================
+# ====================== 工具函数【加固防报错版本】 ======================
 def getv(df, name, col="期末金额(元)"):
-    row = df.loc[df["项目名称"] == name, col]
-    return float(row.values[0]) if len(row) else 0.0
+    try:
+        if df is None or not isinstance(df, pd.DataFrame):
+            return 0.0
+        row = df.loc[df["项目名称"] == name, col]
+        if len(row) == 0:
+            return 0.0
+        val = float(row.values[0])
+        # 过滤inf / nan
+        if np.isnan(val) or np.isinf(val):
+            return 0.0
+        return val
+    except (ValueError, TypeError, KeyError):
+        return 0.0
+
 
 def setv(df, name, val, col="期末金额(元)"):
-    df.loc[df["项目名称"] == name, col] = float(val)
+    try:
+        val = float(val)
+        if np.isnan(val) or np.isinf(val):
+            val = 0.0
+        df.loc[df["项目名称"] == name, col] = val
+    except Exception:
+        df.loc[df["项目名称"] == name, col] = 0.0
 
 # ====================== 核心重算 ======================
 def recalc():
@@ -178,63 +197,63 @@ def recalc():
     for col in ["期初金额(元)", "期末金额(元)"]:
         # 资产负债表
         setv(bs, "存货",
-             getv(bs,"  原材料",col)+getv(bs,"  在产品",col)+getv(bs,"  库存商品",col)+getv(bs,"  周转材料",col), col)
+             getv(bs, "  原材料", col)+getv(bs, "  在产品", col)+getv(bs, "  库存商品", col)+getv(bs, "  周转材料", col), col)
         setv(bs, "流动资产合计",
-             getv(bs,"货币资金",col)+getv(bs,"短期投资",col)+getv(bs,"应收票据",col)+getv(bs,"应收账款",col)
-             +getv(bs,"预付款项",col)+getv(bs,"应收股利",col)+getv(bs,"应收利息",col)+getv(bs,"其他应收款",col)
-             +getv(bs,"存货",col)+getv(bs,"其他流动资产",col), col)
+             getv(bs, "货币资金", col)+getv(bs, "短期投资", col)+getv(bs, "应收票据", col)+getv(bs, "应收账款", col)
+             +getv(bs, "预付款项", col)+getv(bs, "应收股利", col)+getv(bs, "应收利息", col)+getv(bs, "其他应收款", col)
+             +getv(bs, "存货", col)+getv(bs, "其他流动资产", col), col)
         setv(bs, "固定资产账面价值",
-             getv(bs,"固定资产原价",col)-getv(bs,"减：累计折旧",col), col)
+             getv(bs, "固定资产原价", col)-getv(bs, "减：累计折旧", col), col)
         setv(bs, "非流动资产合计",
-             getv(bs,"长期债券投资",col)+getv(bs,"长期股权投资",col)+getv(bs,"固定资产账面价值",col)
-             +getv(bs,"在建工程",col)+getv(bs,"工程物资",col)+getv(bs,"固定资产清理",col)
-             +getv(bs,"生产性生物资产",col)+getv(bs,"无形资产",col)+getv(bs,"开发支出",col)
-             +getv(bs,"长期待摊费用",col)+getv(bs,"其他非流动资产",col), col)
+             getv(bs, "长期债券投资", col)+getv(bs, "长期股权投资", col)+getv(bs, "固定资产账面价值", col)
+             +getv(bs, "在建工程", col)+getv(bs, "工程物资", col)+getv(bs, "固定资产清理", col)
+             +getv(bs, "生产性生物资产", col)+getv(bs, "无形资产", col)+getv(bs, "开发支出", col)
+             +getv(bs, "长期待摊费用", col)+getv(bs, "其他非流动资产", col), col)
         setv(bs, "资产总计",
-             getv(bs,"流动资产合计",col)+getv(bs,"非流动资产合计",col), col)
+             getv(bs, "流动资产合计", col)+getv(bs, "非流动资产合计", col), col)
         setv(bs, "流动负债合计",
-             getv(bs,"短期借款",col)+getv(bs,"应付票据",col)+getv(bs,"应付账款",col)+getv(bs,"预收账款",col)
-             +getv(bs,"应付职工薪酬",col)+getv(bs,"应交税费",col)+getv(bs,"应付利息",col)
-             +getv(bs,"应付利润",col)+getv(bs,"其他应付款",col)+getv(bs,"其他流动负债",col), col)
+             getv(bs, "短期借款", col)+getv(bs, "应付票据", col)+getv(bs, "应付账款", col)+getv(bs, "预收账款", col)
+             +getv(bs, "应付职工薪酬", col)+getv(bs, "应交税费", col)+getv(bs, "应付利息", col)
+             +getv(bs, "应付利润", col)+getv(bs, "其他应付款", col)+getv(bs, "其他流动负债", col), col)
         setv(bs, "非流动负债合计",
-             getv(bs,"长期借款",col)+getv(bs,"长期应付款",col)+getv(bs,"递延收益",col)+getv(bs,"其他非流动负债",col), col)
+             getv(bs, "长期借款", col)+getv(bs, "长期应付款", col)+getv(bs, "递延收益", col)+getv(bs, "其他非流动负债", col), col)
         setv(bs, "负债合计",
-             getv(bs,"流动负债合计",col)+getv(bs,"非流动负债合计",col), col)
+             getv(bs, "流动负债合计", col)+getv(bs, "非流动负债合计", col), col)
         setv(bs, "所有者权益（或股东权益）合计",
-             getv(bs,"实收资本（或股本）",col)+getv(bs,"资本公积",col)+getv(bs,"盈余公积",col)+getv(bs,"未分配利润",col), col)
+             getv(bs, "实收资本（或股本）", col)+getv(bs, "资本公积", col)+getv(bs, "盈余公积", col)+getv(bs, "未分配利润", col), col)
         setv(bs, "负债和所有者权益（或股东权益）总计",
-             getv(bs,"负债合计",col)+getv(bs,"所有者权益（或股东权益）合计",col), col)
+             getv(bs, "负债合计", col)+getv(bs, "所有者权益（或股东权益）合计", col), col)
 
         # 利润表
         setv(pl, "二、营业利润（亏损以\"-\"号填列）",
-             getv(pl,"一、营业收入",col)-getv(pl,"减：营业成本",col)-getv(pl,"税金及附加",col)
-             -getv(pl,"销售费用",col)-getv(pl,"管理费用",col)-getv(pl,"财务费用",col)
-             +getv(pl,"加：投资收益（损失以\"-\"号填列）",col), col)
+             getv(pl, "一、营业收入", col)-getv(pl, "减：营业成本", col)-getv(pl, "税金及附加", col)
+             -getv(pl, "销售费用", col)-getv(pl, "管理费用", col)-getv(pl, "财务费用", col)
+             +getv(pl, "加：投资收益（损失以\"-\"号填列）", col), col)
         setv(pl, "三、利润总额（亏损总额以\"-\"号填列）",
-             getv(pl,"二、营业利润（亏损以\"-\"号填列）",col)+getv(pl,"加：营业外收入",col)-getv(pl,"减：营业外支出",col), col)
+             getv(pl, "二、营业利润（亏损以\"-\"号填列）", col)+getv(pl, "加：营业外收入", col)-getv(pl, "减：营业外支出", col), col)
         setv(pl, "四、净利润（净亏损以\"-\"号填列）",
-             getv(pl,"三、利润总额（亏损总额以\"-\"号填列）",col)-getv(pl,"减：所得税费用",col), col)
+             getv(pl, "三、利润总额（亏损总额以\"-\"号填列）", col)-getv(pl, "减：所得税费用", col), col)
 
         # 现金流量表
         setv(cf, "经营活动产生的现金流量净额",
-             getv(cf,"销售产成品、商品、提供劳务收到的现金",col)+getv(cf,"收到其他与经营活动有关的现金",col)
-             -getv(cf,"购买原材料、商品、接受劳务支付的现金",col)-getv(cf,"支付的职工薪酬",col)
-             -getv(cf,"支付的税费",col)-getv(cf,"支付其他与经营活动有关的现金",col), col)
+             getv(cf, "销售产成品、商品、提供劳务收到的现金", col)+getv(cf, "收到其他与经营活动有关的现金", col)
+             -getv(cf, "购买原材料、商品、接受劳务支付的现金", col)-getv(cf, "支付的职工薪酬", col)
+             -getv(cf, "支付的税费", col)-getv(cf, "支付其他与经营活动有关的现金", col), col)
         setv(cf, "投资活动产生的现金流量净额",
-             getv(cf,"收回短期投资、长期债券投资和长期股权投资收到的现金",col)
-             +getv(cf,"取得投资收益收到的现金",col)
-             +getv(cf,"处置固定资产、无形资产和其他非流动资产收回的现金净额",col)
-             -getv(cf,"短期投资、长期债券投资和长期股权投资支付的现金",col)
-             -getv(cf,"购建固定资产、无形资产和其他非流动资产支付的现金",col), col)
+             getv(cf, "收回短期投资、长期债券投资和长期股权投资收到的现金", col)
+             +getv(cf, "取得投资收益收到的现金", col)
+             +getv(cf, "处置固定资产、无形资产和其他非流动资产收回的现金净额", col)
+             -getv(cf, "短期投资、长期债券投资和长期股权投资支付的现金", col)
+             -getv(cf, "购建固定资产、无形资产和其他非流动资产支付的现金", col), col)
         setv(cf, "筹资活动产生的现金流量净额",
-             getv(cf,"取得借款收到的现金",col)+getv(cf,"吸收投资者投资收到的现金",col)
-             -getv(cf,"偿还借款本金支付的现金",col)-getv(cf,"偿还借款利息支付的现金",col)
-             -getv(cf,"分配利润支付的现金",col), col)
+             getv(cf, "取得借款收到的现金", col)+getv(cf, "吸收投资者投资收到的现金", col)
+             -getv(cf, "偿还借款本金支付的现金", col)-getv(cf, "偿还借款利息支付的现金", col)
+             -getv(cf, "分配利润支付的现金", col), col)
         setv(cf, "四、现金净增加额",
-             getv(cf,"经营活动产生的现金流量净额",col)+getv(cf,"投资活动产生的现金流量净额",col)
-             +getv(cf,"筹资活动产生的现金流量净额",col), col)
+             getv(cf, "经营活动产生的现金流量净额", col)+getv(cf, "投资活动产生的现金流量净额", col)
+             +getv(cf, "筹资活动产生的现金流量净额", col), col)
         setv(cf, "五、期末现金余额",
-             getv(cf,"加：期初现金余额",col)+getv(cf,"四、现金净增加额",col), col)
+             getv(cf, "加：期初现金余额", col)+getv(cf, "四、现金净增加额", col), col)
 
     st.session_state.bs = bs
     st.session_state.pl = pl
@@ -264,7 +283,7 @@ def scale_liabilities_to_target():
     # 平衡权益
     bs = st.session_state.bs.copy()
     new_liab = getv(bs, "负债合计", col)
-    other_equity = getv(bs,"实收资本（或股本）",col)+getv(bs,"资本公积",col)+getv(bs,"盈余公积",col)
+    other_equity = getv(bs, "实收资本（或股本）", col)+getv(bs, "资本公积", col)+getv(bs, "盈余公积", col)
     setv(bs, "未分配利润", total_asset - new_liab - other_equity, col)
     st.session_state.bs = bs
     recalc()
@@ -333,14 +352,14 @@ pl = st.session_state.pl
 cf = st.session_state.cf
 
 col = "期末金额(元)"
-total_asset = getv(bs,"资产总计",col)
-total_liab = getv(bs,"负债合计",col)
-curr_asset = getv(bs,"流动资产合计",col)
-curr_liab = getv(bs,"流动负债合计",col)
-inv = getv(bs,"存货",col)
-revenue = getv(pl,"一、营业收入",col)
-cost = getv(pl,"减：营业成本",col)
-net_profit = getv(pl,"四、净利润（净亏损以\"-\"号填列）",col)
+total_asset = getv(bs, "资产总计", col)
+total_liab = getv(bs, "负债合计", col)
+curr_asset = getv(bs, "流动资产合计", col)
+curr_liab = getv(bs, "流动负债合计", col)
+inv = getv(bs, "存货", col)
+revenue = getv(pl, "一、营业收入", col)
+cost = getv(pl, "减：营业成本", col)
+net_profit = getv(pl, "四、净利润（净亏损以\"-\"号填列）", col)
 
 debt_ratio = total_liab/total_asset if total_asset else 0
 current_ratio = curr_asset/curr_liab if curr_liab else 0
@@ -363,9 +382,9 @@ k8.metric("净利率", f"{net_margin:.1%}")
 
 st.divider()
 
-eq_diff = total_asset - getv(bs,"负债和所有者权益（或股东权益）总计",col)
-cash_bs = getv(bs,"货币资金",col)
-cash_cf = getv(cf,"五、期末现金余额",col)
+eq_diff = total_asset - getv(bs, "负债和所有者权益（或股东权益）总计", col)
+cash_bs = getv(bs, "货币资金", col)
+cash_cf = getv(cf, "五、期末现金余额", col)
 c1,c2,c3 = st.columns(3)
 with c1:
     if abs(eq_diff)<0.01:
@@ -441,10 +460,10 @@ for item_name in liab_items:
     })
     sum_old_liab += val
 
-# 权益固定项：实收资本、资本公积、盈余公积（不变，只有未分配利润做平衡项）
+# 权益固定项：实收资本、资本公积、盈余公积（不变，只有未分配利润做平衡项）【✅这里修复了多余参数】
 equity_fixed = [
     {"item_name":"实收资本（或股本）","value": getv(bs_data,"实收资本（或股本）","期末金额(元)")},
-    {"item_name":"资本公积","value": getv(bs_data,"资本公积","期末金额(元)","期末金额(元)")},
+    {"item_name":"资本公积","value": getv(bs_data,"资本公积","期末金额(元)")},
     {"item_name":"盈余公积","value": getv(bs_data,"盈余公积","期末金额(元)")},
 ]
 sum_equity_fixed = sum([x["value"] for x in equity_fixed])
@@ -476,13 +495,11 @@ with col2:
 
 start_debt_calc = st.button("✅ 确认参数，生成负债模拟表格", type="primary")
 if start_debt_calc:
-    import json
     json_liab_rows = json.dumps(liab_raw_list, ensure_ascii=False)
     st.session_state.debt_html_json_rows = json_liab_rows
     st.session_state.html_target_ratio = str(target_ratio_input)
 
 if st.session_state.debt_html_json_rows is not None:
-    import json
     liab_json_str = st.session_state.debt_html_json_rows
     target_ratio_val = float(st.session_state.html_target_ratio)
 
@@ -651,5 +668,3 @@ if st.session_state.debt_html_json_rows is not None:
         st.subheader("📊 本次负债率模拟汇总")
         sim_sum = st.session_state.debt_sim_summary
         st.dataframe(st.session_state.debt_sim_result, use_container_width=True)
-
-
