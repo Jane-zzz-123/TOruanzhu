@@ -1,17 +1,21 @@
 # -*- coding: utf-8 -*-
-""" 三表勾稽核板（完整版）
+""" 三表勾稽核板（完整版 + 升级：全指标卡片 + 三表联动 + Excel导出下载）
 功能：
-  1. 上传Excel（三sheet：资产负债表/利润表/现金流量表）
-  2. KPI卡片：资产总计、负债合计、资产负债率、净利润、毛利率、净利率、流动比率、速动比率
-  3. 资产负债率滑块（步长5%），按现有负债结构比例自动缩放负债，未分配利润平衡报表
-  4. 可编辑三表：input行可改，calc行只读，改完自动联动重算
-运行：streamlit run app.py
+   1. 上传Excel（三sheet：资产负债表/利润表/现金流量表）
+   2. 全套财务KPI卡片：偿债、盈利、营运指标（红涨绿跌）
+   3. 资产负债率滑块（步长5%），按现有负债结构比例自动缩放负债，未分配利润平衡报表
+   4. 可编辑三表：input行可改，calc行只读，改完自动联动重算
+   5. 【新增】开关：净利润自动同步资产负债表未分配利润（强勾稽）
+   6. 【新增】一键下载调整后三表Excel，和上传模板表头一致
+   7. 【保留】HTML负债模拟面板、JSON复制+回写解析
+运行：streamlit run sanbiaohedui.py
 """
 import pandas as pd
 import streamlit as st
 import json
 import numpy as np
 import math
+from io import BytesIO
 
 st.set_page_config(page_title="三表勾稽核板", layout="wide", page_icon="📊")
 
@@ -162,6 +166,9 @@ if "cf" not in st.session_state:
     st.session_state.cf = empty_df(CF_ROWS)
 if "target_debt_ratio" not in st.session_state:
     st.session_state.target_debt_ratio = 0.75
+# ==========【新增状态：净利润联动未分配利润开关】==========
+if "auto_sync_retained" not in st.session_state:
+    st.session_state.auto_sync_retained = True
 
 # ====================== 工具函数【加固防报错版本】 ======================
 def getv(df, name, col="期末金额(元)"):
@@ -178,7 +185,6 @@ def getv(df, name, col="期末金额(元)"):
         return val
     except (ValueError, TypeError, KeyError):
         return 0.0
-
 
 def setv(df, name, val, col="期末金额(元)"):
     try:
@@ -234,6 +240,16 @@ def recalc():
              getv(pl, "二、营业利润（亏损以\"-\"号填列）", col)+getv(pl, "加：营业外收入", col)-getv(pl, "减：营业外支出", col), col)
         setv(pl, "四、净利润（净亏损以\"-\"号填列）",
              getv(pl, "三、利润总额（亏损总额以\"-\"号填列）", col)-getv(pl, "减：所得税费用", col), col)
+
+        # =========【新增联动逻辑：净利润同步未分配利润，开关控制】=========
+        if col == "期末金额(元)" and st.session_state.auto_sync_retained:
+            net_p = getv(pl, "四、净利润（净亏损以\"-\"号填列）", col)
+            setv(bs, "未分配利润", net_p, col)
+            # 同步重算权益合计
+            setv(bs, "所有者权益（或股东权益）合计",
+                 getv(bs, "实收资本（或股本）", col)+getv(bs, "资本公积", col)+getv(bs, "盈余公积", col)+getv(bs, "未分配利润", col), col)
+            setv(bs, "负债和所有者权益（或股东权益）总计",
+                 getv(bs, "负债合计", col)+getv(bs, "所有者权益（或股东权益）合计", col), col)
 
         # 现金流量表
         setv(cf, "经营活动产生的现金流量净额",
@@ -326,6 +342,16 @@ def parse_uploaded(file):
         st.error(f"解析失败：{e}")
         return False
 
+# ======================【新增：导出三表Excel函数】======================
+def export_three_sheet_excel():
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine="openpyxl") as writer:
+        st.session_state.bs.to_excel(writer, sheet_name="资产负债表", index=False)
+        st.session_state.pl.to_excel(writer, sheet_name="利润表", index=False)
+        st.session_state.cf.to_excel(writer, sheet_name="现金流量表", index=False)
+    output.seek(0)
+    return output
+
 # ====================== 页面 ======================
 st.title("📊 三表勾稽核板")
 
@@ -334,6 +360,10 @@ with st.sidebar:
     up = st.file_uploader("上传填好的Excel", type=["xlsx"])
     if up:
         parse_uploaded(up)
+
+    st.divider()
+    st.header("🎛️ 全局联动设置")
+    st.session_state.auto_sync_retained = st.checkbox("利润表净利润自动同步未分配利润", value=st.session_state.auto_sync_retained, help="开启：修改利润表，净利润自动写入资产负债表未分配利润，严格勾稽；关闭：两张表独立，只做校验提示")
 
     st.divider()
     st.header("🎛️ 资产负债率参数")
@@ -347,6 +377,17 @@ with st.sidebar:
         scale_liabilities_to_target()
         st.success(f"已按负债率={st.session_state.target_debt_ratio:.0%}调整完成！")
 
+    st.divider()
+    # =========【新增侧边栏下载按钮】=========
+    excel_buf = export_three_sheet_excel()
+    st.download_button(
+        label="📥 下载调整后三表Excel",
+        data=excel_buf,
+        file_name="三表模拟结果.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        use_container_width=True
+    )
+
 recalc()
 bs = st.session_state.bs
 pl = st.session_state.pl
@@ -355,20 +396,35 @@ cf = st.session_state.cf
 col = "期末金额(元)"
 total_asset = getv(bs, "资产总计", col)
 total_liab = getv(bs, "负债合计", col)
+total_equity = getv(bs, "所有者权益（或股东权益）合计", col)
 curr_asset = getv(bs, "流动资产合计", col)
 curr_liab = getv(bs, "流动负债合计", col)
 inv = getv(bs, "存货", col)
+receivable = getv(bs, "应收账款", col)
 revenue = getv(pl, "一、营业收入", col)
 cost = getv(pl, "减：营业成本", col)
 net_profit = getv(pl, "四、净利润（净亏损以\"-\"号填列）", col)
+interest_exp = getv(pl, "  其中：利息费用（收入以\"-\"号填列）", col)
+ebit = getv(pl, "三、利润总额（亏损总额以\"-\"号填列）", col) + interest_exp
 
+# 基础指标
 debt_ratio = total_liab/total_asset if total_asset else 0
 current_ratio = curr_asset/curr_liab if curr_liab else 0
 quick_ratio = (curr_asset-inv)/curr_liab if curr_liab else 0
 gross_margin = (revenue-cost)/revenue if revenue else 0
 net_margin = net_profit/revenue if revenue else 0
 
-st.subheader("📌 核心指标（期末口径）")
+# =========【新增全套拓展财务指标】=========
+roe = net_profit / total_equity if total_equity else 0
+roa = net_profit / total_asset if total_asset else 0
+equity_ratio = total_liab / total_equity if total_equity else 0  #产权比率
+inv_turn = cost / inv if inv else 0
+receivable_turn = revenue / receivable if receivable else 0
+asset_turn = revenue / total_asset if total_asset else 0
+interest_cover = ebit / interest_exp if interest_exp !=0 else np.inf
+
+st.subheader("📌 核心指标（期末口径）【偿债｜盈利｜营运】")
+# 第一行 8卡
 k1,k2,k3,k4 = st.columns(4)
 k1.metric("资产总计", f"{total_asset:,.0f}")
 k2.metric("负债合计", f"{total_liab:,.0f}")
@@ -380,6 +436,19 @@ k5.metric("流动比率", f"{current_ratio:.2f}")
 k6.metric("速动比率", f"{quick_ratio:.2f}")
 k7.metric("毛利率", f"{gross_margin:.1%}")
 k8.metric("净利率", f"{net_margin:.1%}")
+
+# 第二行 新增指标卡片
+k9,k10,k11,k12 = st.columns(4)
+k9.metric("ROE", f"{roe:.1%}")
+k10.metric("ROA", f"{roa:.1%}")
+k11.metric("产权比率", f"{equity_ratio:.2f}")
+k12.metric("利息保障倍数", f"{interest_cover:.2f}" if np.isfinite(interest_cover) else "∞")
+
+k13,k14,k15,k16 = st.columns(4)
+k13.metric("存货周转率", f"{inv_turn:.2f}")
+k14.metric("应收周转率", f"{receivable_turn:.2f}")
+k15.metric("总资产周转率", f"{asset_turn:.2f}")
+k16.metric("所有者权益合计", f"{total_equity:,.0f}")
 
 st.divider()
 
@@ -674,5 +743,4 @@ if st.session_state.debt_html_json_rows is not None:
     if st.session_state.debt_sim_result is not None:
         st.divider()
         st.subheader("📊 本次负债率模拟汇总")
-        sim_sum = st.session_state.debt_sim_summary
         st.dataframe(st.session_state.debt_sim_result, use_container_width=True)
